@@ -1,0 +1,13 @@
+[Unit]
+Description=BatRecorder
+After=network.target
+
+[Service]
+User=pi
+Group=pi
+ExecStart=/home/pi/start_bat_recorder.sh
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
