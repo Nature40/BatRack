@@ -142,7 +142,7 @@ class GroundTruther(object):
             except IOError as e:
                 # dammit.
                 errorcount += 1
-                print("(%d) Error recording: %s"%(self.errorcount,e))
+                print("(%d) Error recording: %s"%(errorcount,e))
                 if errorcount > 100:
                     self.signal_handler()
     ####################################################################################################################
