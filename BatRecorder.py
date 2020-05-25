@@ -61,6 +61,7 @@ class GroundTruther(object):
         self.use_trigger = True
 
         GPIO.setmode(GPIO.BCM)
+        GPIO.setwarnings(False)
         GPIO.setup(self.led_pin, GPIO.OUT)
         GPIO.output(self.led_pin, GPIO.LOW)
 
@@ -216,7 +217,7 @@ class GroundTruther(object):
             last_timestamp = parse(date_time_str)
             now = datetime.datetime.utcnow()
             difference = now - last_timestamp
-            if 0 < difference < datetime.timedelta(seconds=self.observation_time_for_ping_in_sec):
+            if datetime.timedelta(seconds=0.0) < difference < datetime.timedelta(seconds=self.observation_time_for_ping_in_sec):
                 last_vhf_ping = now
                 if not vhf_recording:
                     self.startSequence()
