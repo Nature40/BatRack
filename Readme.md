@@ -10,7 +10,7 @@ cp start_bat_recorder.sh /home/pi/start_bat_recorder.sh
 
 make it executable
 ```
-chmod +x /home/pi/start_bat_recorder.sh
+sudo chmod +x /home/pi/start_bat_recorder.sh
 ```
 
 and create a data folder to the BatRecorder
