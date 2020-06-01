@@ -57,8 +57,9 @@ class GroundTruther(object):
         self.ring_buffer = RingBuffer(int(self.ring_buffer_length_in_sec * self.blocks_per_sec), dtype=np.str)
 
         self.current_start_time = ""
-        self.use_command_line_cmd = False
-        self.use_trigger = True
+        self.use_audio_trigger = True
+        self.use_vhf_trigger = True
+        self.vhf_recording = False
 
         GPIO.setmode(GPIO.BCM)
         GPIO.setwarnings(False)
@@ -88,27 +89,27 @@ class GroundTruther(object):
         quietcount = 0
         noisycount = self.max_tap_blocks + 1
         errorcount = 0
+        vhf_audio_recording = False
         while True:
             try:
                 signal = self.stream.read(self.input_frames_per_block)
                 #self.ring_buffer.append(signal)
                 peak_db = 0
                 start_time = 0
-                if self.debug:
-                    start_time = time.time()
                 spectrum = self.exec_fft(signal)
-                if self.debug:
-                    print(spectrum)
                 peak_db = self.get_peak_db(spectrum)
-                if self.debug:
-                    end_time = time.time()
-                    print("fft took {} millisekonds".format(end_time - start_time))
-                else:
-                    spectrum = self.exec_fft(signal)
-                    peak_db = self.get_peak_db(spectrum)
+                spectrum = self.exec_fft(signal)
+                peak_db = self.get_peak_db(spectrum)
 
                 if audio_recording:
                     self.frames.append(signal)
+                if not self.use_audio_trigger:
+                    if self.vhf_recording and not vhf_audio_recording:
+                        vhf_audio_recording = True
+                    elif self.vhf_recording and vhf_audio_recording:
+                        self.frames.append(signal)
+                    continue
+
                 if peak_db > self.threshold_dbfs:
                     # noisy block
                     quietcount = 0
@@ -122,7 +123,7 @@ class GroundTruther(object):
                         pings += 1
                         print("ping")
                         sys.stdout.flush()
-                    if pings >= 2 and not audio_recording:
+                    if pings >= 2 and not audio_recording and self.use_audio_trigger:
                         self.startSequence()
                         print(str(time.time()) + " audio_recording started")
                         sys.stdout.flush()
@@ -219,7 +220,7 @@ class GroundTruther(object):
             difference = now - last_timestamp
             if datetime.timedelta(seconds=0.0) < difference < datetime.timedelta(seconds=self.observation_time_for_ping_in_sec):
                 last_vhf_ping = now
-                if not vhf_recording:
+                if not vhf_recording and self.use_vhf_trigger:
                     self.startSequence()
                     vhf_recording = True
                     print(str(time.time()) + " vhf_recording start")
@@ -262,14 +263,12 @@ class GroundTruther(object):
         save_audio_thread.start()
 
     def __startCamera(self):
-        if self.use_trigger:
-            with open("/var/www/html/FIFO1", "w") as f:
-                f.write("1")
+        with open("/var/www/html/FIFO1", "w") as f:
+            f.write("1")
 
     def __stopCamera(self):
-        if self.use_trigger:
-            with open("/var/www/html/FIFO1", "w") as f:
-                f.write("0")
+        with open("/var/www/html/FIFO1", "w") as f:
+            f.write("0")
 
     def __startLed(self):
         GPIO.output(self.led_pin, GPIO.HIGH)
