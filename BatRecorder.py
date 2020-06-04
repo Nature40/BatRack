@@ -43,11 +43,22 @@ class GroundTruther(object):
         self.blocks_per_sec = self.sampling_rate / self.input_frames_per_block
 
         self.stream = self.open_mic_stream()
-        self.threshold_dbfs = 30
-        self.count_recorder = 0
 
+        ############################ CONFIG #########################################
+
+        self.threshold_dbfs = 30
         self.highpass_frequency = 15000
-        self.fft_highpass = True
+
+        self.use_audio_trigger = False
+        self.use_vhf_trigger = True
+        self.use_camera = True
+
+        self.time_between_vhf_pings_in_sec = 0.8
+        self.observation_time_for_ping_in_sec = (self.time_between_vhf_pings_in_sec * 5) + 0.1
+        self.vhf_threshold = 80
+        self.vhf_duration = 20
+
+        ############################ CONFIG #########################################
 
         self.filter_min_hz = float(self.highpass_frequency)
         self.freq_bins_hz = np.arange((self.input_frames_per_block / 2) + 1) / (self.input_frames_per_block / float(self.sampling_rate))
@@ -56,19 +67,16 @@ class GroundTruther(object):
         self.ring_buffer_length_in_sec = ring_buffer_length_in_sec
         self.ring_buffer = RingBuffer(int(self.ring_buffer_length_in_sec * self.blocks_per_sec), dtype=np.str)
 
-        self.current_start_time = ""
-        self.use_audio_trigger = True
-        self.use_vhf_trigger = True
+        self.count_recorder = 0
         self.vhf_recording = False
+        self.current_start_time = ""
 
         GPIO.setmode(GPIO.BCM)
         GPIO.setwarnings(False)
         GPIO.setup(self.led_pin, GPIO.OUT)
         GPIO.output(self.led_pin, GPIO.LOW)
 
-        self.time_between_vhf_pings_in_sec = 0.8
-        self.observation_time_for_ping_in_sec = (self.time_between_vhf_pings_in_sec * 2) + 0.1
-        self.vhf_threshold = 80
+
         check_vhf_signal_thread = threading.Thread(target=self.check_vhf_signal, args=(self.vhf_threshold, db_user, db_password, db_database))
         check_vhf_signal_thread.start()
 
@@ -153,8 +161,7 @@ class GroundTruther(object):
     def exec_fft(self, signal):
         data_int16 = np.frombuffer(signal, dtype=np.int16)
         spectrum = np.fft.rfft(data_int16)
-        if self.fft_highpass:
-            spectrum[self.freq_bins_hz < self.filter_min_hz] = 0.000000001
+        spectrum[self.freq_bins_hz < self.filter_min_hz] = 0.000000001
         return spectrum
 
     def get_peak_db(self, spectrum):
@@ -203,7 +210,6 @@ class GroundTruther(object):
     ####################################################################################################################
 
     def check_vhf_signal(self, threshold, db_user, db_password, db_database):
-        vhf_recording = False
         last_vhf_ping = datetime.datetime.now()
         while True:
             if self.stopped:
@@ -220,16 +226,16 @@ class GroundTruther(object):
             difference = now - last_timestamp
             if datetime.timedelta(seconds=0.0) < difference < datetime.timedelta(seconds=self.observation_time_for_ping_in_sec):
                 last_vhf_ping = now
-                if not vhf_recording and self.use_vhf_trigger:
+                if not self.vhf_recording and self.use_vhf_trigger:
                     self.startSequence()
-                    vhf_recording = True
+                    self.vhf_recording = True
                     print(str(time.time()) + " vhf_recording start")
                     sys.stdout.flush()
                 time.sleep(1)
             else:
-                if vhf_recording and (now - last_vhf_ping) > datetime.timedelta(seconds=5):
+                if self.vhf_recording and (now - last_vhf_ping) > datetime.timedelta(seconds=5):
                     self.stopSequence()
-                    vhf_recording = False
+                    self.vhf_recording = False
                     print(str(time.time()) + " vhf_recording stop")
                     sys.stdout.flush()
                 else:
@@ -263,12 +269,14 @@ class GroundTruther(object):
         save_audio_thread.start()
 
     def __startCamera(self):
-        with open("/var/www/html/FIFO1", "w") as f:
-            f.write("1")
+        if self.use_camera:
+            with open("/var/www/html/FIFO1", "w") as f:
+                f.write("1")
 
     def __stopCamera(self):
-        with open("/var/www/html/FIFO1", "w") as f:
-            f.write("0")
+        if self.use_camera:
+            with open("/var/www/html/FIFO1", "w") as f:
+                f.write("0")
 
     def __startLed(self):
         GPIO.output(self.led_pin, GPIO.HIGH)
