@@ -16,6 +16,7 @@ import shlex
 import mysql.connector as mariadb
 import mysql
 from dateutil.parser import parse
+from collections import defaultdict
 
 class GroundTruther(object):
     def __init__(self, db_user, db_password, db_database, self_adapting = False, ring_buffer_length_in_sec=3, led_pin=14):
@@ -57,8 +58,14 @@ class GroundTruther(object):
         self.observation_time_for_ping_in_sec = (self.time_between_vhf_pings_in_sec * 5) + 0.1
         self.vhf_threshold = 80
         self.vhf_duration = 20
+        self.vhf_frequencies = []
+        self.vhf_middle_frequency = 150125000
+
+        self.vhf_inactive_threshold = 4
 
         ############################ CONFIG #########################################
+
+        self.currently_active_vhf_frequencies = self.vhf_frequencies
 
         self.filter_min_hz = float(self.highpass_frequency)
         self.freq_bins_hz = np.arange((self.input_frames_per_block / 2) + 1) / (self.input_frames_per_block / float(self.sampling_rate))
@@ -76,9 +83,12 @@ class GroundTruther(object):
         GPIO.setup(self.led_pin, GPIO.OUT)
         GPIO.output(self.led_pin, GPIO.LOW)
 
-
-        check_vhf_signal_thread = threading.Thread(target=self.check_vhf_signal, args=(self.vhf_threshold, db_user, db_password, db_database))
-        check_vhf_signal_thread.start()
+        check_vhf_signal_for_active_bats_thread = threading.Thread(target=self.check_vhf_signal_for_active_bats,
+                                                   args=(db_user, db_password, db_database, self.vhf_threshold))
+        check_vhf_signal_for_active_bats_thread.start()
+        check_vhf_frequencies_for_inactivity_thread = threading.Thread(target=self.check_vhf_frequencies_for_inactivity,
+                                                   args=(db_user, db_password, db_database, self.vhf_threshold))
+        check_vhf_frequencies_for_inactivity_thread.start()
 
     def signal_handler(self, sig = None, frame = None):
         print('You pressed Ctrl+C!')
@@ -209,23 +219,62 @@ class GroundTruther(object):
     ################################################# API to camera and light ##########################################
     ####################################################################################################################
 
-    def check_vhf_signal(self, threshold, db_user, db_password, db_database):
+    def __query_maria_db(self, query, db_user, db_password, db_database):
+        mariadb_connection = mariadb.connect(user=db_user, password=db_password, database=db_database)
+        cursor = mariadb_connection.cursor()
+        cursor.execute(query)
+        return_values = cursor.fetchall()
+        cursor.close()
+        mariadb_connection.close()
+        return return_values
+
+    def __query_for_last_signals(self, db_user, db_password, db_database, signal_threshold, duration, timestamp):
+        query = "SELECT signal_freq FROM signals WHERE max_signal>%s AND duration <%s AND timestamp > %s", (
+            signal_threshold, duration, timestamp)
+        return self.__query_maria_db(query, db_user, db_password, db_database)
+
+    def __query_for_present_but_inactive_bats(self, db_user, db_password, db_database, signal_threshold, duration,
+                                              timestamp):
+        query = "SELECT signal_freq, max_signal FROM signals WHERE max_signal>%s AND duration <%s AND timestamp > %s", (
+            signal_threshold, duration, timestamp)
+        return self.__query_maria_db(query, db_user, db_password, db_database)
+
+    def __check_frequency_for_condition(self,frequency, condition):
+        for wanted_frequency in condition:
+            if wanted_frequency - 10 < ((frequency + self.vhf_middle_frequency) / 1000) < wanted_frequency + 10:
+                return True
+        return False
+
+    def __is_frequency_currently_active(self, frequency):
+        return self.__check_frequency_for_condition(frequency, self.currently_active_vhf_frequencies)
+
+    def __is_frequency_a_bat_frequency(self, frequency):
+        return self.__check_frequency_for_condition(frequency, self.vhf_frequencies)
+
+    def __get_matching_bat_frequency(self, frequency):
+        for wanted_frequency in self.vhf_frequencies:
+            if wanted_frequency - 10 < ((frequency + self.vhf_middle_frequency) / 1000) < wanted_frequency + 10:
+                return wanted_frequency
+
+    def check_vhf_signal_for_active_bats(self, db_user, db_password, db_database, signal_threshold):
         last_vhf_ping = datetime.datetime.now()
         while True:
+            current_round_check = False
             if self.stopped:
                 break
-            #ToDo: Use correct sql statment
-            mariadb_connection = mariadb.connect(user=db_user, password=db_password, database=db_database)
-            cursor = mariadb_connection.cursor()
-            cursor.execute("SELECT timestamp FROM signals WHERE max_signal>%s ORDER BY timestamp DESC LIMIT 1", (threshold,))
-            date_time_str = cursor.fetchall()[0][0]
-            cursor.close()
-            mariadb_connection.close()
-            last_timestamp = parse(date_time_str)
             now = datetime.datetime.utcnow()
-            difference = now - last_timestamp
-            if datetime.timedelta(seconds=0.0) < difference < datetime.timedelta(seconds=self.observation_time_for_ping_in_sec):
-                last_vhf_ping = now
+            query_results = self.__query_for_last_signals(db_user, db_password, db_database, signal_threshold,
+                                                          self.vhf_duration,
+                                                          now - datetime.timedelta(
+                                                                       seconds=self.observation_time_for_ping_in_sec))
+            now = datetime.datetime.utcnow()
+            for result in query_results:
+                frequency = result[0]
+                if self.__is_frequency_currently_active(frequency):
+                    current_round_check = True
+                    last_vhf_ping = now
+
+            if current_round_check:
                 if not self.vhf_recording and self.use_vhf_trigger:
                     self.startSequence()
                     self.vhf_recording = True
@@ -233,15 +282,37 @@ class GroundTruther(object):
                     sys.stdout.flush()
                 time.sleep(1)
             else:
-                if self.vhf_recording and (now - last_vhf_ping) > datetime.timedelta(seconds=5):
+                if self.vhf_recording and (now - last_vhf_ping) > datetime.timedelta(seconds=self.observation_time_for_ping_in_sec):
                     self.stopSequence()
                     self.vhf_recording = False
                     print(str(time.time()) + " vhf_recording stop")
                     sys.stdout.flush()
-                else:
-                    print(difference)
-                    sys.stdout.flush()
                 time.sleep(0.2)
+
+    def check_vhf_frequencies_for_inactivity(self, db_user, db_password, db_database, signal_threshold):
+        while True:
+            now = datetime.datetime.utcnow()
+            query_results = self.__query_for_present_but_inactive_bats(db_user, db_password, db_database, signal_threshold,
+                                                          self.vhf_duration,
+                                                          now - datetime.timedelta(
+                                                              seconds=60))
+            signals = defaultdict(list)
+            for result in query_results:
+                frequency, signal_strength = result
+                if self.__is_frequency_a_bat_frequency(frequency):
+                    signals[self.__get_matching_bat_frequency(frequency)].append(signal_strength)
+
+            for frequency in signals.keys():
+                if np.std(signals[frequency]) < self.vhf_inactive_threshold:
+                    self.currently_active_vhf_frequencies.remove(frequency)
+                else:
+                    if frequency not in self.currently_active_vhf_frequencies:
+                        self.currently_active_vhf_frequencies.append(frequency)
+
+            for frequency in self.vhf_frequencies:
+                if frequency not in signals.keys() and frequency not in self.currently_active_vhf_frequencies:
+                    self.currently_active_vhf_frequencies.append(frequency)
+            time.sleep(10)
 
     def save_audio(self):
         wavefile = wave.open(self.current_start_time + ".wav", 'wb')
