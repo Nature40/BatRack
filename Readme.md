@@ -13,6 +13,11 @@ make it executable
 sudo chmod +x /home/pi/start_bat_recorder.sh
 ```
 
+make the debug script form the RPi Cam executable
+```
+sudo chmod +x /home/pi/BatRecorder/RPi_Cam_Web_Interface/debug.sh 
+```
+
 and create a data folder to the BatRecorder
 ```
 mkdir /home/pi/BatRecorder/data/
