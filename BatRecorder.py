@@ -16,15 +16,20 @@ import os.path
 import shlex
 import mysql.connector as mariadb
 import mysql
+import datetime
 from dateutil.parser import parse
 from collections import defaultdict
+from configparser import ConfigParser
+import copy
+from typing import *
 
-class GroundTruther(object):
-    def __init__(self, db_user, db_password, db_database, self_adapting = False, ring_buffer_length_in_sec=3, led_pin=14):
+class BatRecorder(object):
+    def __init__(self, db_user: str, db_password: str, db_database: str,
+                 self_adapting: bool = False, ring_buffer_length_in_sec: int = 3):
         self.stopped = False
         self.self_adapting = self_adapting
-        self.led_pin = led_pin
-        self.debug = False
+
+        self.debug_on = False
         signal.signal(signal.SIGINT, self.signal_handler)
 
         self.pa = pyaudio.PyAudio()
@@ -44,34 +49,24 @@ class GroundTruther(object):
         self.undersensitive = 120.0 / self.input_block_time
         self.blocks_per_sec = self.sampling_rate / self.input_frames_per_block
 
-        ############################ CONFIG #########################################
+        config_object = ConfigParser()
+        config_object.read("/boot/BatRecorderConfig.conf")
+        self.config = config_object["CONFIG"]
 
-        self.threshold_dbfs = 30
-        self.highpass_frequency = 15000
+        self.led_pin = self.config.led_pin
 
-        self.use_audio_trigger = False
-        self.use_vhf_trigger = True
-        self.use_camera = True
-        self.use_microphone = False
+        self.start_time = datetime.time(self.config.start_time_h, self.config.start_time_m, self.config.start_time_s)
+        self.end_time = datetime.time(self.config.end_time_h, self.config.end_time_m, self.config.end_time_s)
 
-        self.time_between_vhf_pings_in_sec = 0.8
-        self.observation_time_for_ping_in_sec = (self.time_between_vhf_pings_in_sec * 5) + 0.1
-        self.vhf_threshold = 80
-        self.vhf_duration = 0.02
-        self.vhf_frequencies = [150187, 150128, 150171, 150211]
-        self.vhf_middle_frequency = 150125000
-
-        self.vhf_inactive_threshold = 2
-
-        ############################ CONFIG #########################################
-
-        if self.use_microphone:
+        if self.config.use_microphone:
             self.stream = self.open_mic_stream()
 
-        self.currently_active_vhf_frequencies = [150187, 150128, 150171, 150211]
+        self.observation_time_for_ping_in_sec = (float(self.config.time_between_vhf_pings_in_sec) * 5) + 0.1
+        self.currently_active_vhf_frequencies = copy.deepcopy(self.config.vhf_frequencies)
 
-        self.filter_min_hz = float(self.highpass_frequency)
-        self.freq_bins_hz = np.arange((self.input_frames_per_block / 2) + 1) / (self.input_frames_per_block / float(self.sampling_rate))
+        self.filter_min_hz = float(self.config.highpass_frequency)
+        self.freq_bins_hz = np.arange((self.input_frames_per_block / 2) + 1) / \
+                            (self.input_frames_per_block / float(self.sampling_rate))
         self.window_function_dbfs_max = np.sum(self.input_frames_per_block) / 2.0
 
         self.ring_buffer_length_in_sec = ring_buffer_length_in_sec
@@ -81,7 +76,7 @@ class GroundTruther(object):
         self.vhf_recording = False
         self.current_start_time = ""
 
-        print("set gpio pin")
+        self.print_message("set gpio pin", False)
         sys.stdout.flush()
         GPIO.setmode(GPIO.BCM)
         GPIO.setwarnings(False)
@@ -90,41 +85,66 @@ class GroundTruther(object):
 
 
         check_vhf_signal_for_active_bats_thread = threading.Thread(target=self.check_vhf_signal_for_active_bats,
-                                                   args=(db_user, db_password, db_database, self.vhf_threshold))
+                                                   args=(db_user, db_password, db_database, self.config.vhf_threshold))
         check_vhf_signal_for_active_bats_thread.start()
         check_vhf_frequencies_for_inactivity_thread = threading.Thread(target=self.check_vhf_frequencies_for_inactivity,
-                                                   args=(db_user, db_password, db_database, self.vhf_threshold))
+                                                   args=(db_user, db_password, db_database, self.config.vhf_threshold))
         check_vhf_frequencies_for_inactivity_thread.start()
+
+        self.main_loop()
+
+    ######################################## helper functions ##########################################################
 
     def __clean_up(self):
         self.stopped = True
-        print("threads are stopped")
+        self.print_message("threads are stopped", False)
         self.stream.stop_stream()
         self.stream.close()
-        print("stream is cleaned up")
+        self.print_message("stream is cleaned up", False)
         self.pa.terminate()
-        print("pyaudio is cleaned up")
+        self.print_message("pyaudio is cleaned up", False)
         GPIO.setmode(GPIO.BCM)
         GPIO.setup(self.led_pin, GPIO.OUT)
         GPIO.output(self.led_pin, GPIO.LOW)
         GPIO.cleanup()
-        print("gpio is cleaned up")
+        self.print_message("gpio is cleaned up", False)
 
-    def signal_handler(self, sig = None, frame = None):
-        print('You pressed Ctrl+C!')
+    def time_in_range(self, start: datetime.time, end: datetime.time, x: datetime.time):
+        """Return true if x is in the range [start, end]"""
+
+        if start <= end:
+            return start <= x <= end
+        else:
+            return start <= x or x <= end
+
+    def signal_handler(self, sig=None, frame=None):
+        self.print_message("You pressed Ctrl+C!", False)
         clean_up_thread = threading.Thread(target=self.__clean_up, args=())
         clean_up_thread.start()
         time.sleep(1)
         os._exit(0)
 
+    def get_time(self):
+        return str(datetime.datetime.now())
+
+    def print_message(self, message: str, is_debug: bool = False):
+        if is_debug and self.debug_on:
+            print("DEBUG: " + self.get_time() + message)
+        if not is_debug:
+            print(self.get_time() + message)
+        sys.stdout.flush()
+
+    ############################################# main loop ############################################################
+
     def main_loop(self):
-        if self.use_microphone:
+        if self.config.use_microphone:
             audio_recording = False
             pings = 0
             quietcount = 0
             noisycount = self.max_tap_blocks + 1
-            errorcount = 0
             vhf_audio_recording = False
+            start_time_audio = 0
+
             while True:
                 try:
                     signal = self.stream.read(self.input_frames_per_block, exception_on_overflow = False)
@@ -134,69 +154,68 @@ class GroundTruther(object):
 
                     if audio_recording:
                         self.frames.append(signal)
-                    if not self.use_audio_trigger:
+                    if not self.config.use_audio_trigger:
                         if self.vhf_recording and not vhf_audio_recording:
                             vhf_audio_recording = True
                         elif self.vhf_recording and vhf_audio_recording:
                             self.frames.append(signal)
                         continue
 
-                    if peak_db > self.threshold_dbfs:
+                    if peak_db > self.config.threshold_dbfs:
                         # noisy block
                         quietcount = 0
                         noisycount += 1
                         if self.self_adapting and noisycount > self.oversensitive:
                             # turn down the sensitivity
-                            self.threshold_dbfs *= 1.1
+                            self.config.threshold_dbfs *= 1.1
                     else:
                         # quiet block.
                         if 1 <= noisycount <= self.max_tap_blocks:
                             pings += 1
-                            print("ping")
-                            sys.stdout.flush()
-                        if pings >= 2 and not audio_recording and self.use_audio_trigger:
-                            self.startSequence()
-                            print(str(time.time()) + " audio_recording started")
-                            sys.stdout.flush()
-                            audio_recording = True
+                            self.print_message("ping", False)
+                        if pings >= 2 and not audio_recording and self.config.use_audio_trigger:
+                            if self.time_in_range(self.start_time, self.end_time, datetime.datetime.now().time()):
+                                self.startSequence()
+                                self.print_message("audio_recording started", False)
+                                audio_recording = True
+                                start_time_audio = time.time()
+                            else:
+                                self.print_message("it is not the time to listen", False)
                         if quietcount > self.silence_time:
                             pings = 0
                             if audio_recording:
-                                self.stopSequence()
-                                print(str(time.time()) + " audio_recording stoped")
-                                sys.stdout.flush()
-                                audio_recording = False
+                                if time.time() > start_time_audio + self.config.min_seconds_for_audio_recording:
+                                    self.stopSequence()
+                                    self.print_message("audio_recording stopped", False)
+                                    audio_recording = False
                         noisycount = 0
                         quietcount += 1
                         if self.self_adapting and quietcount > self.undersensitive:
                             # turn up the sensitivity
-                            self.threshold_dbfs *= 0.9
+                            self.config.threshold_dbfs *= 0.9
                 except IOError as e:
                     # dammit.
-                    print("(%d) Error recording: %s" % (e))
+                    self.print_message("Error recording: {}".format(e), False)
                     self.signal_handler()
             else:
                 while True:
                     time.sleep(1)
 
-
-
-    ####################################################################################################################
     ################################################# Audio Functions ##################################################
-    ####################################################################################################################
-    def exec_fft(self, signal):
+
+    def exec_fft(self, signal: pyaudio.paInt16):
         data_int16 = np.frombuffer(signal, dtype=np.int16)
         spectrum = np.fft.rfft(data_int16)
         spectrum[self.freq_bins_hz < self.filter_min_hz] = 0.000000001
         return spectrum
 
-    def get_peak_db(self, spectrum):
+    def get_peak_db(self, spectrum: np.fft):
         dbfs_spectrum = 20 * np.log10(np.abs(spectrum) / max([self.window_function_dbfs_max, 1]))
         bin_peak_index = dbfs_spectrum.argmax()
         peak_db = dbfs_spectrum[bin_peak_index]
-        if self.debug:
+        if self.debug_on:
             peak_frequency_hz = bin_peak_index * self.sampling_rate / self.input_frames_per_block
-            print('DEBUG: Peak freq hz: ' + str(peak_frequency_hz) + '   dBFS: ' + str(peak_db))
+            self.print_message("DEBUG: Peak freq hz: " + str(peak_frequency_hz) + "   dBFS: " + str(peak_db), True)
         return peak_db
 
     def stop(self):
@@ -205,21 +224,22 @@ class GroundTruther(object):
     def find_input_device(self):
         device_index = None
         for i in range( self.pa.get_device_count() ):
-            devinfo = self.pa.get_device_info_by_index(i)
-            print("Device %d: %s"%(i,devinfo["name"]))
+            dev_info = self.pa.get_device_info_by_index(i)
+            self.print_message("Device {}: {}".format(i, dev_info["name"]), True)
 
             for keyword in ["mic", "input"]:
-                if keyword in devinfo["name"].lower():
-                    print("Found an input: device %d - %s"%(i,devinfo["name"]))
+                if keyword in dev_info["name"].lower():
+                    self.print_message("Found an input: device {} - {}".format(i, dev_info["name"]), True)
                     device_index = i
                     return device_index
 
         if device_index == None:
-            print("No preferred input found; using default input device.")
+            self.print_message("No preferred input found; using default input device.", False)
+            self.signal_handler()
 
         return device_index
 
-    def open_mic_stream( self ):
+    def open_mic_stream(self):
         self.device_index = self.find_input_device()
 
         stream = self.pa.open(format = self.format,
@@ -231,36 +251,34 @@ class GroundTruther(object):
 
         return stream
 
-    ####################################################################################################################
-    ################################################# API to camera and light ##########################################
-    ####################################################################################################################
+    ######################################### check activity of bats ###################################################
 
-    def __query_maria_db(self, db_user, db_password, db_database, signal_threshold, duration, timestamp):
+    def __query_maria_db(self, db_user: str, db_password: str, db_database: str,
+                         signal_threshold: int, duration: float, timestamp: datetime.datetime):
+        query = "SELECT signal_freq FROM signals WHERE max_signal > %s AND duration < %s AND timestamp > %s"
         try:
             mariadb_connection = mariadb.connect(user=db_user, password=db_password, database=db_database)
             cursor = mariadb_connection.cursor()
-            cursor.execute("SELECT signal_freq FROM signals WHERE max_signal > %s AND duration < %s AND timestamp > %s", (signal_threshold, duration, timestamp,))
+            cursor.execute(query, (signal_threshold, duration, timestamp,))
             return_values = cursor.fetchall()
             cursor.close()
             mariadb_connection.close()
             return return_values
         except Exception as e:
-            print("Error for query: " + str(query) + " with error: " + str(e))
-            sys.stdout.flush()
-
+            self.print_message("Error for query: {} with error: {}".format(query, e), False)
 
     def __query_maria_db_2(self, db_user, db_password, db_database, signal_threshold, duration, timestamp):
+        query = "SELECT signal_freq, max_signal FROM signals WHERE max_signal > %s AND duration < %s AND timestamp > %s"
         try:
             mariadb_connection = mariadb.connect(user=db_user, password=db_password, database=db_database)
             cursor = mariadb_connection.cursor()
-            cursor.execute("SELECT signal_freq, max_signal FROM signals WHERE max_signal > %s AND duration < %s AND timestamp > %s", (signal_threshold, duration, timestamp))
+            cursor.execute(query, (signal_threshold, duration, timestamp))
             return_values = cursor.fetchall()
             cursor.close()
             mariadb_connection.close()
             return return_values
         except Exception as e:
-            print("Error for query: " + str(query) + " with error: " + str(e))
-            sys.stdout.flush()
+            self.print_message("Error for query: {} with error: {}".format(query, e), False)
 
     def __query_for_last_signals(self, db_user, db_password, db_database, signal_threshold, duration, timestamp):
         return self.__query_maria_db(db_user, db_password, db_database, signal_threshold, duration, timestamp)
@@ -271,29 +289,36 @@ class GroundTruther(object):
 
     def __check_frequency_for_condition(self, frequency, condition):
         for wanted_frequency in condition:
-            if wanted_frequency - 8 < ((int(frequency) + self.vhf_middle_frequency) / 1000) < wanted_frequency + 8:
+            if wanted_frequency - self.config.frequency_range_for_vhf_frequency < \
+                    ((int(frequency) + self.config.vhf_middle_frequency) / 1000) < \
+                    wanted_frequency + self.config.frequency_range_for_vhf_frequency:
                 return True
         return False
 
     def __is_frequency_currently_active(self, frequency):
         for wanted_frequency in self.currently_active_vhf_frequencies:
-            if wanted_frequency - 8 < ((int(frequency) + self.vhf_middle_frequency) / 1000) < wanted_frequency + 8:
+            if wanted_frequency - self.config.frequency_range_for_vhf_frequency < \
+                    ((int(frequency) + self.config.vhf_middle_frequency) / 1000) < \
+                    wanted_frequency + self.config.frequency_range_for_vhf_frequency:
                 return True
         return False
 
     def __is_frequency_a_bat_frequency(self, frequency):
-        for wanted_frequency in self.vhf_frequencies:
-            if wanted_frequency - 8 < ((int(frequency) + self.vhf_middle_frequency) / 1000) < wanted_frequency + 8:
+        for wanted_frequency in self.config.vhf_frequencies:
+            if wanted_frequency - self.config.frequency_range_for_vhf_frequency < \
+                    ((int(frequency) + self.config.vhf_middle_frequency) / 1000) \
+                    < wanted_frequency + self.config.frequency_range_for_vhf_frequency:
                 return True
         return False
 
     def __get_matching_bat_frequency(self, frequency):
-        for wanted_frequency in self.vhf_frequencies:
-            if wanted_frequency - 8 < ((frequency + self.vhf_middle_frequency) / 1000) < wanted_frequency + 8:
+        for wanted_frequency in self.config.vhf_frequencies:
+            if wanted_frequency - self.config.frequency_range_for_vhf_frequency < \
+                    ((frequency + self.config.vhf_middle_frequency) / 1000) < \
+                    wanted_frequency + self.config.frequency_range_for_vhf_frequency:
                 return wanted_frequency
 
     def check_vhf_signal_for_active_bats(self, db_user, db_password, db_database, signal_threshold):
-        sys.stdout.flush()
         last_vhf_ping = datetime.datetime.now()
         while True:
             try:
@@ -302,7 +327,7 @@ class GroundTruther(object):
                     break
                 now = datetime.datetime.utcnow()
                 query_results = self.__query_for_last_signals(db_user, db_password, db_database, signal_threshold,
-                                                              self.vhf_duration, now - datetime.timedelta(
+                                                              self.config.vhf_duration, now - datetime.timedelta(
                                                               seconds=self.observation_time_for_ping_in_sec))
                 now = datetime.datetime.utcnow()
                 for result in query_results:
@@ -312,22 +337,20 @@ class GroundTruther(object):
                         last_vhf_ping = now
 
                 if current_round_check:
-                    if not self.vhf_recording and self.use_vhf_trigger:
+                    if not self.vhf_recording and self.config.use_vhf_trigger:
                         self.startSequence()
                         self.vhf_recording = True
-                        print(str(time.time()) + " vhf_recording start")
-                        sys.stdout.flush()
+                        self.print_message("vhf_recording stop", False)
                     time.sleep(1)
                 else:
-                    if self.vhf_recording and (now - last_vhf_ping) > datetime.timedelta(seconds=self.observation_time_for_ping_in_sec):
+                    if self.vhf_recording and (now - last_vhf_ping) > datetime.timedelta(
+                            seconds=self.observation_time_for_ping_in_sec):
                         self.stopSequence()
                         self.vhf_recording = False
-                        print(str(time.time()) + " vhf_recording stop")
-                        sys.stdout.flush()
+                        self.print_message("vhf_recording start", False)
                     time.sleep(0.2)
             except Exception as e:
-                print("Error in check_vhf_signal_for_active_bats: " + str(e))
-                sys.stdout.flush()
+                self.print_message("Error in check_vhf_signal_for_active_bats: {}".format(e), False)
 
     def check_vhf_frequencies_for_inactivity(self, db_user, db_password, db_database, signal_threshold):
         sys.stdout.flush()
@@ -336,10 +359,9 @@ class GroundTruther(object):
                 if self.stopped:
                     break
                 now = datetime.datetime.utcnow()
-                query_results = self.__query_for_present_but_inactive_bats(db_user, db_password, db_database, signal_threshold,
-                                                              self.vhf_duration,
-                                                              now - datetime.timedelta(
-                                                                  seconds=60))
+                query_results = self.__query_for_present_but_inactive_bats(db_user, db_password, db_database,
+                                                                           signal_threshold, self.config.vhf_duration,
+                                                                           now - datetime.timedelta(seconds=60))
 
                 signals = defaultdict(list)
                 for result in query_results:
@@ -352,25 +374,26 @@ class GroundTruther(object):
 
                 for frequency in signals.keys():
                     sys.stdout.flush()
-                    if len(signals[frequency]) > 10 and np.std(signals[frequency]) < self.vhf_inactive_threshold and frequency in self.currently_active_vhf_frequencies:
-                        print(str(time.time()) + " remove frequency: " + str(frequency))
-                        sys.stdout.flush()
+                    if len(signals[frequency]) > 10 \
+                            and np.std(signals[frequency]) < self.config.vhf_inactive_threshold  \
+                            and frequency in self.currently_active_vhf_frequencies:
+                        self.print_message("remove frequency: {}".format(frequency), False)
                         self.currently_active_vhf_frequencies.remove(frequency)
-                    elif np.std(signals[frequency]) > self.vhf_inactive_threshold and frequency not in self.currently_active_vhf_frequencies:
+                    elif np.std(signals[frequency]) > self.config.vhf_inactive_threshold \
+                            and frequency not in self.currently_active_vhf_frequencies:
                         if frequency not in self.currently_active_vhf_frequencies:
-                            print(str(time.time()) + " add frequency: " + str(frequency))
-                            sys.stdout.flush()
+                            self.print_message("add frequency: {}".format(frequency), False)
                             self.currently_active_vhf_frequencies.append(frequency)
 
-                for frequency in self.vhf_frequencies:
+                for frequency in self.config.vhf_frequencies:
                     if frequency not in signals.keys() and frequency not in self.currently_active_vhf_frequencies:
-                        print(str(time.time()) + " add frequency: " + str(frequency))
-                        sys.stdout.flush()
+                        self.print_message("add frequency: {}".format(frequency), False)
                         self.currently_active_vhf_frequencies.append(frequency)
                 time.sleep(10)
             except Exception as e:
-                print("Error in check_vhf_frequencies_for_inactivity: " + str(e))
-                sys.stdout.flush()
+                self.print_message("Error in check_vhf_frequencies_for_inactivity: ".format(e), False)
+
+    ######################################### API to camera, audio and light ###########################################
 
     def save_audio(self):
         wavefile = wave.open(self.current_start_time + ".wav", 'wb')
@@ -382,64 +405,56 @@ class GroundTruther(object):
 
     def __check_recorder_at_start(self):
         self.count_recorder += 1
-        print("start " + str(self.count_recorder))
+        self.print_message("start {}".format(self.count_recorder), False)
         return self.count_recorder == 1
 
     def __check_recorder_at_stop(self):
         self.count_recorder -= 1
-        print("stop " + str(self.count_recorder))
+        self.print_message("stop {}".format(self.count_recorder), False)
         return self.count_recorder == 0
 
     def __startAudio(self):
-        if self.use_microphone:
+        if self.config.use_microphone:
             self.frames = []
 
     def __stopAudio(self):
-        if self.use_microphone:
+        if self.config.use_microphone:
             save_audio_thread = threading.Thread(target=self.save_audio, args=())
             save_audio_thread.start()
 
     def __startCamera(self):
-        if self.use_camera:
+        if self.config.use_camera:
             with open("/var/www/html/FIFO1", "w") as f:
                 f.write("1")
 
     def __stopCamera(self):
-        if self.use_camera:
+        if self.config.use_camera:
             with open("/var/www/html/FIFO1", "w") as f:
                 f.write("0")
 
     def __startLed(self):
-        if self.use_camera:
+        if self.config.use_camera:
             GPIO.output(self.led_pin, GPIO.HIGH)
 
     def __stopLed(self):
-        if self.use_camera:
+        if self.config.use_camera:
             GPIO.output(self.led_pin, GPIO.LOW)
 
     def startSequence(self):
         if self.__check_recorder_at_start():
-            print("start recording!")
+            self.print_message("start recording", False)
             self.current_start_time = datetime.datetime.now().strftime("%Y-%m-%dT%H_%M_%S")
-            start_audio_thread = threading.Thread(target=self.__startAudio, args=())
-            start_audio_thread.start()
-            start_led_thread = threading.Thread(target=self.__startLed, args=())
-            start_led_thread.start()
-            start_camera_thread = threading.Thread(target=self.__startCamera, args=())
-            start_camera_thread.start()
+            self.__startAudio()
+            self.__startLed()
+            self.__startCamera()
 
     def stopSequence(self):
         if self.__check_recorder_at_stop():
-            print("stop recording")
-            stop_audio_thread = threading.Thread(target=self.__stopAudio, args=())
-            stop_audio_thread.start()
-            stop_led_thread = threading.Thread(target=self.__stopLed, args=())
-            stop_led_thread.start()
-            stop_camera_thread = threading.Thread(target=self.__stopCamera, args=())
-            stop_camera_thread.start()
-
+            self.print_message("stop recording", False)
+            self.__stopAudio()
+            self.__stopLed()
+            self.__stopCamera()
 
 if __name__ == "__main__":
-    groundTruther = GroundTruther("pi", "natur", "rteu")
-    groundTruther.main_loop()
+    batRecorder = BatRecorder("pi", "natur", "rteu")
 
