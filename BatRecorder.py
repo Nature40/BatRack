@@ -32,6 +32,10 @@ class BatRecorder(object):
         self.debug_on = False
         signal.signal(signal.SIGINT, self.signal_handler)
 
+        self.db_user = db_user
+        self.db_password = db_password
+        self.db_database = db_database
+
         self.pa = pyaudio.PyAudio()
         self.sampling_rate = 250000
         self.max_int_16 = 32767
@@ -85,10 +89,10 @@ class BatRecorder(object):
 
 
         check_vhf_signal_for_active_bats_thread = threading.Thread(target=self.check_vhf_signal_for_active_bats,
-                                                   args=(db_user, db_password, db_database, self.config.vhf_threshold))
+                                                   args=())
         check_vhf_signal_for_active_bats_thread.start()
         check_vhf_frequencies_for_inactivity_thread = threading.Thread(target=self.check_vhf_frequencies_for_inactivity,
-                                                   args=(db_user, db_password, db_database, self.config.vhf_threshold))
+                                                   args=())
         check_vhf_frequencies_for_inactivity_thread.start()
 
         self.main_loop()
@@ -96,6 +100,7 @@ class BatRecorder(object):
     ######################################## helper functions ##########################################################
 
     def __clean_up(self):
+        '''stops all streams, clean up state and set the gpio to low'''
         self.stopped = True
         self.print_message("threads are stopped", False)
         self.stream.stop_stream()
@@ -110,7 +115,7 @@ class BatRecorder(object):
         self.print_message("gpio is cleaned up", False)
 
     def time_in_range(self, start: datetime.time, end: datetime.time, x: datetime.time):
-        """Return true if x is in the range [start, end]"""
+        '''Return true if x is in the range [start, end]'''
 
         if start <= end:
             return start <= x <= end
@@ -118,6 +123,7 @@ class BatRecorder(object):
             return start <= x or x <= end
 
     def signal_handler(self, sig=None, frame=None):
+        '''cleans all states and streams up and terminates the process'''
         self.print_message("You pressed Ctrl+C!", False)
         clean_up_thread = threading.Thread(target=self.__clean_up, args=())
         clean_up_thread.start()
@@ -125,9 +131,11 @@ class BatRecorder(object):
         os._exit(0)
 
     def get_time(self):
+        '''returns the current datetime as string'''
         return str(datetime.datetime.now())
 
     def print_message(self, message: str, is_debug: bool = False):
+        '''helper function for consistent output'''
         if is_debug and self.debug_on:
             print("DEBUG: " + self.get_time() + message)
         if not is_debug:
@@ -137,6 +145,10 @@ class BatRecorder(object):
     ############################################# main loop ############################################################
 
     def main_loop(self):
+        '''
+        get the signals from the microphone and process the audio in case the microphone is in use
+        else it is only a aways running dummy loop
+        '''
         if self.config.use_microphone:
             audio_recording = False
             pings = 0
@@ -203,13 +215,18 @@ class BatRecorder(object):
 
     ################################################# Audio Functions ##################################################
 
-    def exec_fft(self, signal: pyaudio.paInt16):
+    def exec_fft(self, signal):
+        '''
+        execute a fft for a given signal and cuts the the frequencies below self.filter_min_hz
+        and return the resulting spectrum
+        '''
         data_int16 = np.frombuffer(signal, dtype=np.int16)
         spectrum = np.fft.rfft(data_int16)
         spectrum[self.freq_bins_hz < self.filter_min_hz] = 0.000000001
         return spectrum
 
     def get_peak_db(self, spectrum: np.fft):
+        '''returns the maximum db of the given spectrum'''
         dbfs_spectrum = 20 * np.log10(np.abs(spectrum) / max([self.window_function_dbfs_max, 1]))
         bin_peak_index = dbfs_spectrum.argmax()
         peak_db = dbfs_spectrum[bin_peak_index]
@@ -219,9 +236,11 @@ class BatRecorder(object):
         return peak_db
 
     def stop(self):
+        '''closes the audio stream'''
         self.stream.close()
 
     def find_input_device(self):
+        '''searches for a microphone and returns the device number'''
         device_index = None
         for i in range( self.pa.get_device_count() ):
             dev_info = self.pa.get_device_info_by_index(i)
@@ -240,24 +259,30 @@ class BatRecorder(object):
         return device_index
 
     def open_mic_stream(self):
-        self.device_index = self.find_input_device()
+        '''open a PyAudio stream for the found device number and return the stream'''
+        device_index = self.find_input_device()
 
         stream = self.pa.open(format = self.format,
                               channels = self.channels,
                               rate = self.sampling_rate,
                               input = True,
-                              input_device_index = self.device_index,
+                              input_device_index = device_index,
                               frames_per_buffer = self.input_frames_per_block)
 
         return stream
 
     ######################################### check activity of bats ###################################################
 
-    def __query_maria_db(self, db_user: str, db_password: str, db_database: str,
-                         signal_threshold: int, duration: float, timestamp: datetime.datetime):
+    def __query_for_last_signals(self, signal_threshold: int, duration: float, timestamp: datetime.datetime):
+        '''
+        :param signal_threshold: signals must have a higher peak power than the threshold is
+        :param duration: the duration of the signal must be less than this duration
+        :param timestamp: the signal must be newer the the timestamp
+        :return: returns the signal frequency for all matching signals
+        '''
         query = "SELECT signal_freq FROM signals WHERE max_signal > %s AND duration < %s AND timestamp > %s"
         try:
-            mariadb_connection = mariadb.connect(user=db_user, password=db_password, database=db_database)
+            mariadb_connection = mariadb.connect(user=self.db_user, password=self.db_password, database=self.db_database)
             cursor = mariadb_connection.cursor()
             cursor.execute(query, (signal_threshold, duration, timestamp,))
             return_values = cursor.fetchall()
@@ -267,10 +292,16 @@ class BatRecorder(object):
         except Exception as e:
             self.print_message("Error for query: {} with error: {}".format(query, e), False)
 
-    def __query_maria_db_2(self, db_user, db_password, db_database, signal_threshold, duration, timestamp):
+    def __query_for_present_but_inactive_bats(self,  signal_threshold: int, duration: float, timestamp: datetime.datetime):
+        '''
+        :param signal_threshold: signals must have a higher peak power than the threshold is
+        :param duration: the duration of the signal must be less than this duration
+        :param timestamp: the signal must be newer the the timestamp
+        :return: returns the signal frequency and peak power for all matching signals
+        '''
         query = "SELECT signal_freq, max_signal FROM signals WHERE max_signal > %s AND duration < %s AND timestamp > %s"
         try:
-            mariadb_connection = mariadb.connect(user=db_user, password=db_password, database=db_database)
+            mariadb_connection = mariadb.connect(user=self.db_user, password=self.db_password, database=self.db_database)
             cursor = mariadb_connection.cursor()
             cursor.execute(query, (signal_threshold, duration, timestamp))
             return_values = cursor.fetchall()
@@ -280,22 +311,12 @@ class BatRecorder(object):
         except Exception as e:
             self.print_message("Error for query: {} with error: {}".format(query, e), False)
 
-    def __query_for_last_signals(self, db_user, db_password, db_database, signal_threshold, duration, timestamp):
-        return self.__query_maria_db(db_user, db_password, db_database, signal_threshold, duration, timestamp)
-
-    def __query_for_present_but_inactive_bats(self, db_user, db_password, db_database, signal_threshold, duration,
-                                              timestamp):
-        return self.__query_maria_db_2(db_user, db_password, db_database, signal_threshold, duration, timestamp)
-
-    def __check_frequency_for_condition(self, frequency, condition):
-        for wanted_frequency in condition:
-            if wanted_frequency - self.config.frequency_range_for_vhf_frequency < \
-                    ((int(frequency) + self.config.vhf_middle_frequency) / 1000) < \
-                    wanted_frequency + self.config.frequency_range_for_vhf_frequency:
-                return True
-        return False
-
-    def __is_frequency_currently_active(self, frequency):
+    def __is_frequency_currently_active(self, frequency: int):
+        '''
+        True if the given frequency is in the frequency range of currently active frequencies else False
+        :param frequency: frequency to check
+        :return: bool
+        '''
         for wanted_frequency in self.currently_active_vhf_frequencies:
             if wanted_frequency - self.config.frequency_range_for_vhf_frequency < \
                     ((int(frequency) + self.config.vhf_middle_frequency) / 1000) < \
@@ -304,6 +325,11 @@ class BatRecorder(object):
         return False
 
     def __is_frequency_a_bat_frequency(self, frequency):
+        '''
+        True if the given frequency is in the frequency range of any of the potential bat frequencies else False
+        :param frequency: frequency to check
+        :return: bool
+        '''
         for wanted_frequency in self.config.vhf_frequencies:
             if wanted_frequency - self.config.frequency_range_for_vhf_frequency < \
                     ((int(frequency) + self.config.vhf_middle_frequency) / 1000) \
@@ -312,13 +338,21 @@ class BatRecorder(object):
         return False
 
     def __get_matching_bat_frequency(self, frequency):
+        '''
+        :param frequency: given frequency of signal
+        :return: the matching frequency out of self.config.vhf_frequencies
+        '''
         for wanted_frequency in self.config.vhf_frequencies:
             if wanted_frequency - self.config.frequency_range_for_vhf_frequency < \
                     ((frequency + self.config.vhf_middle_frequency) / 1000) < \
                     wanted_frequency + self.config.frequency_range_for_vhf_frequency:
                 return wanted_frequency
 
-    def check_vhf_signal_for_active_bats(self, db_user, db_password, db_database, signal_threshold):
+    def check_vhf_signal_for_active_bats(self):
+        '''
+        an always running thread for the continuous check of all frequencies for activity
+        if activity is detected the thread starts the recording
+        '''
         last_vhf_ping = datetime.datetime.now()
         while True:
             try:
@@ -326,8 +360,8 @@ class BatRecorder(object):
                 if self.stopped:
                     break
                 now = datetime.datetime.utcnow()
-                query_results = self.__query_for_last_signals(db_user, db_password, db_database, signal_threshold,
-                                                              self.config.vhf_duration, now - datetime.timedelta(
+                query_results = self.__query_for_last_signals(self.config.vhf_threshold, self.config.vhf_duration,
+                                                              now - datetime.timedelta(
                                                               seconds=self.observation_time_for_ping_in_sec))
                 now = datetime.datetime.utcnow()
                 for result in query_results:
@@ -340,27 +374,30 @@ class BatRecorder(object):
                     if not self.vhf_recording and self.config.use_vhf_trigger:
                         self.startSequence()
                         self.vhf_recording = True
-                        self.print_message("vhf_recording stop", False)
+                        self.print_message("vhf_recording start", False)
                     time.sleep(1)
                 else:
                     if self.vhf_recording and (now - last_vhf_ping) > datetime.timedelta(
                             seconds=self.observation_time_for_ping_in_sec):
                         self.stopSequence()
                         self.vhf_recording = False
-                        self.print_message("vhf_recording start", False)
+                        self.print_message("vhf_recording stop", False)
                     time.sleep(0.2)
             except Exception as e:
                 self.print_message("Error in check_vhf_signal_for_active_bats: {}".format(e), False)
 
-    def check_vhf_frequencies_for_inactivity(self, db_user, db_password, db_database, signal_threshold):
+    def check_vhf_frequencies_for_inactivity(self):
+        '''
+        an always running threas for continuous adding and removing frequencies from the currently active frequencies list
+        '''
         sys.stdout.flush()
         while True:
             try:
                 if self.stopped:
                     break
                 now = datetime.datetime.utcnow()
-                query_results = self.__query_for_present_but_inactive_bats(db_user, db_password, db_database,
-                                                                           signal_threshold, self.config.vhf_duration,
+                query_results = self.__query_for_present_but_inactive_bats(self.config.vhf_threshold,
+                                                                           self.config.vhf_duration,
                                                                            now - datetime.timedelta(seconds=60))
 
                 signals = defaultdict(list)
@@ -369,8 +406,6 @@ class BatRecorder(object):
                     sys.stdout.flush()
                     if self.__is_frequency_a_bat_frequency(frequency):
                         signals[self.__get_matching_bat_frequency(frequency)].append(signal_strength)
-
-                sys.stdout.flush()
 
                 for frequency in signals.keys():
                     sys.stdout.flush()
@@ -396,6 +431,9 @@ class BatRecorder(object):
     ######################################### API to camera, audio and light ###########################################
 
     def save_audio(self):
+        '''
+        store the last recorded audio to the filesystem
+        '''
         wavefile = wave.open(self.current_start_time + ".wav", 'wb')
         wavefile.setnchannels(self.channels)
         wavefile.setsampwidth(self.pa.get_sample_size(self.format))
@@ -404,43 +442,58 @@ class BatRecorder(object):
         wavefile.close()
 
     def __check_recorder_at_start(self):
+        '''
+        increases the number of sensor which want to record at the time
+        :return: if the recording should be started
+        '''
         self.count_recorder += 1
         self.print_message("start {}".format(self.count_recorder), False)
         return self.count_recorder == 1
 
     def __check_recorder_at_stop(self):
+        '''
+        decreases the number of sensor which want to record at the time
+        :return: if the recording should be stopped
+        '''
         self.count_recorder -= 1
         self.print_message("stop {}".format(self.count_recorder), False)
         return self.count_recorder == 0
 
     def __startAudio(self):
+        '''start audio recording if the microphone should be used'''
         if self.config.use_microphone:
             self.frames = []
 
     def __stopAudio(self):
+        '''stop audio recording if the microphone should be used and start writing the audio to filesystem'''
         if self.config.use_microphone:
             save_audio_thread = threading.Thread(target=self.save_audio, args=())
             save_audio_thread.start()
 
     def __startCamera(self):
+        '''start the camera if the camera should be used'''
         if self.config.use_camera:
             with open("/var/www/html/FIFO1", "w") as f:
                 f.write("1")
 
     def __stopCamera(self):
+        '''stop the camera if the camera should be used'''
         if self.config.use_camera:
             with open("/var/www/html/FIFO1", "w") as f:
                 f.write("0")
 
     def __startLed(self):
+        '''start the led spot if the led spot should be used'''
         if self.config.use_camera:
             GPIO.output(self.led_pin, GPIO.HIGH)
 
     def __stopLed(self):
+        '''stop the led spot if the led spot should be used'''
         if self.config.use_camera:
             GPIO.output(self.led_pin, GPIO.LOW)
 
     def startSequence(self):
+        '''start all parts of the system to record a bat'''
         if self.__check_recorder_at_start():
             self.print_message("start recording", False)
             self.current_start_time = datetime.datetime.now().strftime("%Y-%m-%dT%H_%M_%S")
@@ -449,6 +502,7 @@ class BatRecorder(object):
             self.__startCamera()
 
     def stopSequence(self):
+        '''stop all parts of the system which are used to record bats'''
         if self.__check_recorder_at_stop():
             self.print_message("stop recording", False)
             self.__stopAudio()
