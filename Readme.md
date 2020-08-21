@@ -1,3 +1,12 @@
+Product owern: Jannis
+
+## Epic 1: Publish BatRecroder
+...
+- [ ] ...
+
+
+
+
 copy the content of BatRecorder.service to /etc/systemd/system/BatRecorder.service so we create a new system service 
 ```
 cp BatRecorder.service /etc/systemd/system/BatRecorder.service
