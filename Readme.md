@@ -4,7 +4,8 @@ Product owern: Jannis
 ...
 - [ ] ...
 
-
+## Backlog
+- [ ] Update documentation page and add maintenance information (also videos).
 
 
 copy the content of BatRecorder.service to /etc/systemd/system/BatRecorder.service so we create a new system service 
