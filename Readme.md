@@ -45,3 +45,17 @@ check log form the BatRecorder with:
 ```
 journalctl -fu BatRecorder
 ```
+
+Install dependencies for BatRecorder:
+```
+pip3 install PyAudio
+sudo apt install python-pyaudio
+pip3 install numpy
+sudo apt-get install libatlas-base-dev
+pip3 install picamera
+pip3 install RPi.GPIO
+pip3 install numpy_ringbuffer
+pip3 install mysql
+pip3 install mysql-connector-python-rf
+pip3 install python-dateutil
+```
