@@ -48,6 +48,7 @@ journalctl -fu BatRecorder
 
 Install dependencies for BatRecorder:
 ```
+sudo apt-get install python3-pip
 pip3 install PyAudio
 sudo apt install python-pyaudio
 pip3 install numpy
