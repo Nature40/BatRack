@@ -156,7 +156,6 @@ class BatRecorder(object):
             noisycount = self.max_tap_blocks + 1
             vhf_audio_recording = False
             start_time_audio = 0
-
             while True:
                 try:
                     signal = self.stream.read(self.input_frames_per_block, exception_on_overflow = False)
@@ -183,9 +182,11 @@ class BatRecorder(object):
                     else:
                         # quiet block.
                         if 1 <= noisycount <= self.max_tap_blocks:
+                            # noisy block after quiet block => potential bat call
                             pings += 1
                             self.print_message("ping", False)
                         if pings >= 2 and not audio_recording and self.config.use_audio_trigger:
+                            # notice second potential bat call => start the recording
                             if self.time_in_range(self.start_time, self.end_time, datetime.datetime.now().time()):
                                 self.startSequence()
                                 self.print_message("audio_recording started", False)
@@ -193,6 +194,7 @@ class BatRecorder(object):
                                 start_time_audio = time.time()
                             else:
                                 self.print_message("it is not the time to listen", False)
+                        # too much quiet time the bat seems to be flown away
                         if quietcount > self.silence_time:
                             pings = 0
                             if audio_recording:
@@ -200,6 +202,12 @@ class BatRecorder(object):
                                     self.stopSequence()
                                     self.print_message("audio_recording stopped", False)
                                     audio_recording = False
+
+                        if time.time() > start_time_audio + self.config.audio_split:
+                            frames_to_store = copy.deepcopy(self.frames)
+                            self.frames = []
+                            self.__stopAudio(frames_to_store)
+                            self.__startAudio()
                         noisycount = 0
                         quietcount += 1
                         if self.self_adapting and quietcount > self.undersensitive:
@@ -388,7 +396,8 @@ class BatRecorder(object):
 
     def check_vhf_frequencies_for_inactivity(self):
         '''
-        an always running threas for continuous adding and removing frequencies from the currently active frequencies list
+        an always running thread for continuous adding
+        and removing frequencies from the currently active frequencies list
         '''
         sys.stdout.flush()
         while True:
@@ -430,15 +439,13 @@ class BatRecorder(object):
 
     ######################################### API to camera, audio and light ###########################################
 
-    def save_audio(self):
-        '''
-        store the last recorded audio to the filesystem
-        '''
+    def save_audio(self, frames):
+        '''store the last recorded audio to the filesystem'''
         wavefile = wave.open(self.current_start_time + ".wav", 'wb')
         wavefile.setnchannels(self.channels)
         wavefile.setsampwidth(self.pa.get_sample_size(self.format))
         wavefile.setframerate(self.sampling_rate)
-        wavefile.writeframes(b''.join(self.frames))
+        wavefile.writeframes(b''.join(frames))
         wavefile.close()
 
     def __check_recorder_at_start(self):
@@ -462,12 +469,13 @@ class BatRecorder(object):
     def __startAudio(self):
         '''start audio recording if the microphone should be used'''
         if self.config.use_microphone:
+            self.current_start_time = datetime.datetime.now().strftime("%Y-%m-%dT%H_%M_%S")
             self.frames = []
 
-    def __stopAudio(self):
+    def __stopAudio(self, frames):
         '''stop audio recording if the microphone should be used and start writing the audio to filesystem'''
         if self.config.use_microphone:
-            save_audio_thread = threading.Thread(target=self.save_audio, args=())
+            save_audio_thread = threading.Thread(target=self.save_audio, args=(frames))
             save_audio_thread.start()
 
     def __startCamera(self):
@@ -496,7 +504,6 @@ class BatRecorder(object):
         '''start all parts of the system to record a bat'''
         if self.__check_recorder_at_start():
             self.print_message("start recording", False)
-            self.current_start_time = datetime.datetime.now().strftime("%Y-%m-%dT%H_%M_%S")
             self.__startAudio()
             self.__startLed()
             self.__startCamera()
@@ -505,7 +512,7 @@ class BatRecorder(object):
         '''stop all parts of the system which are used to record bats'''
         if self.__check_recorder_at_stop():
             self.print_message("stop recording", False)
-            self.__stopAudio()
+            self.__stopAudio(self.frames)
             self.__stopLed()
             self.__stopCamera()
 
