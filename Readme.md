@@ -1,3 +1,14 @@
+Product owern: Jannis
+
+## Epic 1: Publish BatRecroder
+...
+- [ ] ...
+
+## Backlog
+- [ ] Update documentation page and add maintenance information (also videos).
+
+## Readme
+
 copy the content of BatRecorder.service to /etc/systemd/system/BatRecorder.service so we create a new system service 
 ```
 cp BatRecorder.service /etc/systemd/system/BatRecorder.service
@@ -33,4 +44,19 @@ sudo systemctl start BatRecorder
 check log form the BatRecorder with:
 ```
 journalctl -fu BatRecorder
+```
+
+Install dependencies for BatRecorder:
+```
+sudo apt-get install python3-pip
+pip3 install PyAudio
+sudo apt install python-pyaudio
+pip3 install numpy
+sudo apt-get install libatlas-base-dev
+pip3 install picamera
+pip3 install RPi.GPIO
+pip3 install numpy_ringbuffer
+pip3 install mysql
+pip3 install mysql-connector-python-rf
+pip3 install python-dateutil
 ```
