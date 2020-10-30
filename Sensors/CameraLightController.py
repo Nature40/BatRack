@@ -1,23 +1,42 @@
 import RPi.GPIO as GPIO
 
-class CameraLighController:
+
+class CameraLightController:
     def __init__(self, led_pin):
         self.led_pin = led_pin
+        GPIO.setmode(GPIO.BCM)
+        GPIO.setwarnings(False)
+        GPIO.setup(self.led_pin, GPIO.OUT)
+        GPIO.output(self.led_pin, GPIO.LOW)
 
-    def start_camera(self):
-        '''start the camera if the camera should be used'''
+    @staticmethod
+    def __start_camera():
+        """start the camera via file trigger to RPi_Cam_Web_Interface"""
         with open("/var/www/html/FIFO1", "w") as f:
             f.write("1")
 
-    def stop_camera(self):
-        '''stop the camera if the camera should be used'''
+    @staticmethod
+    def __stop_camera():
+        """stop the camera via file trigger to RPi_Cam_Web_Interface"""
         with open("/var/www/html/FIFO1", "w") as f:
             f.write("0")
 
-    def start_led(self):
-        '''start the led spot if the led spot should be used'''
+    def __start_led(self):
+        """start the led spot via GPIO"""
         GPIO.output(self.led_pin, GPIO.HIGH)
 
-    def stop_led(self):
-        '''stop the led spot if the led spot should be used'''
+    def __stop_led(self):
+        """stop the led spot via GPIO"""
         GPIO.output(self.led_pin, GPIO.LOW)
+
+    def start(self):
+        self.__start_led()
+        self.__stop_camera()
+
+    def stop(self):
+        self.__stop_led()
+        self.__stop_camera()
+
+    def clean_up(self):
+        GPIO.output(self.led_pin, GPIO.LOW)
+        GPIO.cleanup()

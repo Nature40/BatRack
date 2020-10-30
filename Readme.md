@@ -1,31 +1,31 @@
-copy the content of BatRecorder.service to /etc/systemd/system/BatRecorder.service so we create a new system service 
+copy the content of BatRecorder.service to /etc/systemd/system/BatRack.service so we create a new system service 
 ```
-cp BatRecorder.service /etc/systemd/system/BatRecorder.service
+sudo cp BatRack.service /etc/systemd/system/BatRack.service
 ```
 
-copy the bash file start_bat_recorder.sh to the home directory 
+copy the bash file start_bat_rack.sh to the home directory 
 ```
-cp start_bat_recorder.sh /home/pi/start_bat_recorder.sh
+cp start_bat_rack.sh /home/pi/start_bat_rack.sh
 ```
 
 make it executable
 ```
-sudo chmod +x /home/pi/start_bat_recorder.sh
+sudo chmod +x /home/pi/start_bat_rack.sh
 ```
 
 and create a data folder to the BatRecorder
 ```
-mkdir /home/pi/BatRecorder/data/
+mkdir /home/pi/BatRack/data/
 ```
 
 enable the system service 
 ```
 sudo systemctl daemon-reload
-sudo systemctl enable BatRecorder.service
-sudo systemctl start BatRecorder
+sudo systemctl enable BatRack.service
+sudo systemctl start BatRack
 ```
 
 check log form the BatRecorder with:
 ```
-journalctl -fu BatRecorder
+journalctl -fu BatRack
 ```
