@@ -17,6 +17,7 @@ class VHF:
                  vhf_frequencies,
                  frequency_range_for_vhf_frequency,
                  vhf_middle_frequency,
+                 vhf_inactive_threshold,
                  time_between_vhf_pings_in_sec,
                  vhf_threshold,
                  vhf_duration,
@@ -34,6 +35,7 @@ class VHF:
         self.vhf_duration = vhf_duration
         self.observation_time_for_ping_in_sec = observation_time_for_ping_in_sec
         self.currently_active_vhf_frequencies = copy.deepcopy(self.vhf_frequencies)
+        self.vhf_inactive_threshold = vhf_inactive_threshold
         self.stopped = False
 
     def __query_for_last_signals(self, signal_threshold: int, duration: float, timestamp: datetime.datetime):
@@ -112,10 +114,10 @@ class VHF:
                 return wanted_frequency
 
     def check_vhf_signal_for_active_bats(self):
-        '''
+        """
         an always running thread for the continuous check of all frequencies for activity
         if activity is detected the thread starts the recording
-        '''
+        """
         last_vhf_ping = datetime.datetime.now()
         while True:
             try:
@@ -151,10 +153,10 @@ class VHF:
                 Helper.print_message("Error in check_vhf_signal_for_active_bats: {}".format(e), False)
 
     def check_vhf_frequencies_for_inactivity(self):
-        '''
+        """
         an always running thread for continuous adding
         and removing frequencies from the currently active frequencies list
-        '''
+        """
         sys.stdout.flush()
         while True:
             try:

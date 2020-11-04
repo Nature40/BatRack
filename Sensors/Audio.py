@@ -10,6 +10,7 @@ import Helper
 
 class Audio:
     def __init__(self,
+                 data_folder,
                  threshold_dbfs,
                  highpass_frequency,
                  ring_buffer_length_in_sec,
@@ -17,6 +18,7 @@ class Audio:
                  min_seconds_for_audio_recording,
                  debug_on,
                  trigger_system):
+        self.data_folder = data_folder
         self.threshold_dbfs = threshold_dbfs
         self.audio_split = audio_split
         self.trigger_system = trigger_system
@@ -48,103 +50,47 @@ class Audio:
 
         self.current_start_time_str: str = ""
         self.current_start_time: int = 0
-        self.last_ping: int = 0
         self.frames = []
         self.recording_thread: threading = None
-        self.continuous_thread_stopped = False
+        self.recording_thread_stopped = False
         self.noisy_count = 0
         self.quiet_count = 0
         self.pings = 0
         self.audio_recording = False
 
-    def get_max_tap_blocks(self):
-        return self.max_tap_blocks
+    def start(self, use_trigger: bool = False):
+        """
+        start audio recording if the microphone should be used
+        :param use_trigger:
+        :return:
+        """
+        Helper.print_message("Start Audio")
+        self.__start_new_file()
+        self.__record(use_trigger)
 
-    def __read(self):
-        return self.stream.read(self.input_frames_per_block, exception_on_overflow=False)
-
-    def __read_continuous(self, use_trigger: bool):
-        while True:
-            if self.continuous_thread_stopped:
-                self.__save()
-                return
-            if self.__is_time_for_audio_split():
-                Helper.print_message("doing audio split")
-                self.__save()
-            if use_trigger:
-                frame = self.__read()
-                if self.__check_trigger_state(frame):
-                    self.frames.append(frame)
-            else:
-                self.frames.append(self.__read())
-
-    def __check_trigger_state(self, frame):
-        spectrum = self.__exec_fft(frame)
-        peak_db = self.__get_peak_db(spectrum)
-        if self.__check_signal_for_threshold(peak_db):
-            # noisy block
-            self.quiet_count = 0
-            self.noisy_count += 1
-        else:
-            # quiet block.
-            if 1 <= self.noisy_count <= self.max_tap_blocks:
-                self.pings += 1
-                self.last_ping = time.time()
-                Helper.print_message("ping")
-            if self.pings >= 2 and not self.audio_recording:
-                Helper.print_message("audio_recording started")
-                self.audio_recording = True
-                self.trigger_system.start_sequence_audio()
-                self.current_start_time = time.time()
-            if self.quiet_count > self.silence_time:
-                if time.time() > self.current_start_time + self.min_seconds_for_audio_recording:
-                    self.pings = 0
-                    self.audio_recording = False
-                    self.trigger_system.stop_sequence_audio()
-            self.noisy_count = 0
-            self.quiet_count += 1
-            return self.audio_recording
-
-    def __record(self, triggered):
-        self.recording_thread = threading.Thread(target=self.__read_continuous, args=(triggered))
-        self.recording_thread.start()
-
-    def __stop_record(self):
-        self.continuous_thread_stopped = True
-        if self.recording_thread is not None:
-            self.recording_thread.terminate()
+    def stop(self):
+        """
+        stop audio recording if the microphone should be used and start writing the audio to filesystem
+        :return:
+        """
+        self.__stop_record()
 
     def clean_up(self):
+        """
+        stops the stream and terminates PyAudio. Additional it stops the recording first
+        :return:
+        """
+        self.__stop_record()
+        time.sleep(2)
         self.stream.stop_stream()
         self.stream.close()
         self.pa.terminate()
 
-    def __exec_fft(self, signal):
+    def __find_input_device(self) -> int:
         """
-        execute a fft for a given signal and cuts the the frequencies below self.filter_min_hz
-        and return the resulting spectrum
+        searches for a microphone and returns the device number
+        :return: the device id
         """
-        data_int16 = np.frombuffer(signal, dtype=np.int16)
-        spectrum = np.fft.rfft(data_int16)
-        spectrum[self.freq_bins_hz < self.filter_min_hz] = 0.000000001
-        return spectrum
-
-    def __get_peak_db(self, spectrum: np.fft):
-        """returns the maximum db of the given spectrum"""
-        dbfs_spectrum = 20 * np.log10(np.abs(spectrum) / max([self.window_function_dbfs_max, 1]))
-        bin_peak_index = dbfs_spectrum.argmax()
-        peak_db = dbfs_spectrum[bin_peak_index]
-        if self.debug_on:
-            peak_frequency_hz = bin_peak_index * self.sampling_rate / self.input_frames_per_block
-            Helper.print_message("DEBUG: Peak freq hz: " + str(peak_frequency_hz) + " dBFS: " + str(peak_db), True)
-        return peak_db
-
-    def stop_stream(self):
-        """closes the audio stream"""
-        self.stream.close()
-
-    def __find_input_device(self):
-        """searches for a microphone and returns the device number"""
         device_index = None
         for i in range(self.pa.get_device_count()):
             dev_info = self.pa.get_device_info_by_index(i)
@@ -159,10 +105,11 @@ class Audio:
         if device_index is None:
             Helper.print_message("No preferred input found; using default input device.", False)
 
-        return device_index
-
     def __open_mic_stream(self):
-        """open a PyAudio stream for the found device number and return the stream"""
+        """
+        open a PyAudio stream for the found device number and return the stream
+        :return:
+        """
         device_index = self.__find_input_device()
 
         stream = self.pa.open(format=self.format,
@@ -175,15 +122,22 @@ class Audio:
         return stream
 
     def __start_new_file(self):
+        """
+        Save the current time for the filename and empty the frames to have a clear new state
+        :return:
+        """
         self.current_start_time_str = datetime.datetime.now().strftime("%Y-%m-%dT%H_%M_%S")
         self.current_start_time = time.time()
         self.frames = []
 
     def __save(self):
-        """store the last recorded audio to the filesystem and clears the list of frames"""
+        """
+        store the last recorded audio to the filesystem and clears the list of frames
+        :return:
+        """
         Helper.print_message("len of frames: {}".format(len(self.frames)))
-        Helper.print_message("file name: {}.wav".format(self.current_start_time_str))
-        wave_file = wave.open(self.current_start_time_str + ".wav", 'wb')
+        Helper.print_message("file name: {}{}.wav".format(self.data_folder, self.current_start_time_str))
+        wave_file = wave.open(self.data_folder + self.current_start_time_str + ".wav", 'wb')
         wave_file.setnchannels(self.channels)
         wave_file.setsampwidth(self.pa.get_sample_size(self.format))
         wave_file.setframerate(self.sampling_rate)
@@ -191,17 +145,108 @@ class Audio:
         wave_file.close()
         self.__start_new_file()
 
-    def start(self, use_trigger: bool = False):
-        """start audio recording if the microphone should be used"""
-        self.__start_new_file()
-        self.__record(use_trigger)
+    def __read_frame(self, use_overflow_exception=False):
+        return self.stream.read(self.input_frames_per_block, exception_on_overflow=use_overflow_exception)
 
-    def stop(self):
-        """stop audio recording if the microphone should be used and start writing the audio to filesystem"""
-        self.__stop_record()
+    def __observe_and_process_audio_stream(self, use_trigger: bool):
+        """
+        observes the audio stream continuous if no trigger is used or process every frame for an trigger and
+        store frames only in case of a trigger.
+        This method is supposed to be use in a separate thread so it checks every time if the thread should be stopped.
+        Additionally it checks if the current audio dump is longer than the expected chunk and has to be splitted
+        :param use_trigger: decides if the recording is continuous or triggered by the audio itself
+        :return:
+        """
+        while True:
+            if self.recording_thread_stopped:
+                self.__save()
+                return
+            if self.__is_time_for_audio_split():
+                Helper.print_message("doing audio split")
+                self.__save()
+            if use_trigger:
+                frame = self.__read_frame()
+                if self.__check_trigger_state(frame):
+                    self.frames.append(frame)
+            else:
+                self.frames.append(self.__read_frame())
 
-    def __check_signal_for_threshold(self, peak_db):
+    def __check_trigger_state(self, frame) -> bool:
+        """
+        checks for the given frame if a trigger is present
+        :param frame: the frame to check
+        :return: the status of audio recording
+        """
+        spectrum = self.__exec_fft(frame)
+        peak_db = self.__get_peak_db(spectrum)
+        if self.__check_signal_for_threshold(peak_db):
+            # noisy block
+            self.quiet_count = 0
+            self.noisy_count += 1
+        else:
+            # quiet block.
+            if 1 <= self.noisy_count <= self.max_tap_blocks:
+                self.pings += 1
+                Helper.print_message("ping")
+            if self.pings >= 2 and not self.audio_recording:
+                Helper.print_message("audio_recording started")
+                self.audio_recording = True
+                self.trigger_system.start_sequence_audio()
+                self.current_start_time = time.time()
+            if self.quiet_count > self.silence_time and self.audio_recording:
+                if time.time() > self.current_start_time + self.min_seconds_for_audio_recording:
+                    self.pings = 0
+                    self.audio_recording = False
+                    self.trigger_system.stop_sequence_audio()
+                    self.__save()
+            self.noisy_count = 0
+            self.quiet_count += 1
+            return self.audio_recording
+
+    def __record(self, use_trigger):
+        """
+        Creates and starts a thread to observe the audio stream
+        :param use_trigger: decides if the recording is continuous or triggered by the audio itself
+        :return:
+        """
+        self.recording_thread = threading.Thread(target=self.__observe_and_process_audio_stream, args=(use_trigger, ))
+        self.recording_thread.start()
+
+    def __stop_record(self):
+        """
+        set the flag for stopping the recording to True and termites the thread
+        :return:
+        """
+        self.recording_thread_stopped = True
+
+    def __exec_fft(self, signal) -> np.fft.rfft:
+        """
+        execute a fft for a given signal and cuts the the frequencies below self.filter_min_hz
+        and return the resulting spectrum
+        :param signal: givem signal to process the fft function
+        :return:
+        """
+        data_int16 = np.frombuffer(signal, dtype=np.int16)
+        spectrum = np.fft.rfft(data_int16)
+        spectrum[self.freq_bins_hz < self.filter_min_hz] = 0.000000001
+        return spectrum
+
+    def __get_peak_db(self, spectrum: np.fft) -> int:
+        """
+        returns the maximum db of the given spectrum
+        :param spectrum:
+        :return:
+        """
+        dbfs_spectrum = 20 * np.log10(np.abs(spectrum) / max([self.window_function_dbfs_max, 1]))
+        bin_peak_index = dbfs_spectrum.argmax()
+        peak_db = dbfs_spectrum[bin_peak_index]
+        if self.debug_on:
+            peak_frequency_hz = bin_peak_index * self.sampling_rate / self.input_frames_per_block
+            Helper.print_message("DEBUG: Peak freq hz: " + str(peak_frequency_hz) + " dBFS: " + str(peak_db), True)
+        return peak_db
+
+    def __check_signal_for_threshold(self, peak_db) -> bool:
         return peak_db > self.threshold_dbfs
 
-    def __is_time_for_audio_split(self):
+    def __is_time_for_audio_split(self) -> bool:
         return time.time() > self.current_start_time + self.audio_split

@@ -11,27 +11,39 @@ class CameraLightController:
 
     @staticmethod
     def __start_camera():
-        """start the camera via file trigger to RPi_Cam_Web_Interface"""
+        """
+        start the camera via file trigger to RPi_Cam_Web_Interface
+        :return:
+        """
         with open("/var/www/html/FIFO1", "w") as f:
             f.write("1")
 
     @staticmethod
     def __stop_camera():
-        """stop the camera via file trigger to RPi_Cam_Web_Interface"""
+        """
+        stop the camera via file trigger to RPi_Cam_Web_Interface
+        :return:
+        """
         with open("/var/www/html/FIFO1", "w") as f:
             f.write("0")
 
     def __start_led(self):
-        """start the led spot via GPIO"""
+        """
+        start the led spot via GPIO
+        :return:
+        """
         GPIO.output(self.led_pin, GPIO.HIGH)
 
     def __stop_led(self):
-        """stop the led spot via GPIO"""
+        """
+        stop the led spot via GPIO
+        :return:
+        """
         GPIO.output(self.led_pin, GPIO.LOW)
 
     def start(self):
         self.__start_led()
-        self.__stop_camera()
+        self.__start_camera()
 
     def stop(self):
         self.__stop_led()
