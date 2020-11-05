@@ -6,7 +6,7 @@ import time
 import wave
 import threading
 import Helper
-import Sensors.Sensor as Sensor
+from Sensors.Sensor import  Sensor
 
 
 class Audio(Sensor):

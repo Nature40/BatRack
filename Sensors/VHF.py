@@ -6,7 +6,7 @@ import copy
 import time
 import Helper
 from collections import defaultdict
-import Sensors.Sensor as Sensor
+from Sensors.Sensor import Sensor
 
 
 class VHF(Sensor):

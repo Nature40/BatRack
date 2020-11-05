@@ -1,5 +1,5 @@
 import RPi.GPIO as GPIO
-import Sensors.Sensor as Sensor
+from Sensors.Sensor import Sensor
 
 
 class CameraLightController(Sensor):
