@@ -11,7 +11,6 @@ import Helper
 
 class BatRack(object):
     def __init__(self, db_user: str, db_password: str, db_database: str, config_file_name: str):
-
         self.debug_on = False
         signal.signal(signal.SIGINT, self.signal_handler)
 
@@ -36,8 +35,11 @@ class BatRack(object):
 
         self.trigger_system = TriggerSystem()
 
+        self.sensors = []
+
         if self.use_camera:
             self.camera_light_controller = CameraLightController(self.config.get_int("led_pin"))
+            self.sensors.append(self.camera_light_controller)
             self.trigger_system.set_camera_and_light_controller(self.camera_light_controller)
         if self.use_microphone:
             self.audio = Audio(self.data_path,
@@ -48,6 +50,7 @@ class BatRack(object):
                                self.config.get_int("min_seconds_for_audio_recording"),
                                self.debug_on,
                                self.trigger_system)
+            self.sensors.append(self.audio)
             self.trigger_system.set_audio(self.audio)
         if self.run_continuous:
             if self.use_camera:
@@ -68,10 +71,9 @@ class BatRack(object):
                                self.config.get_float("vhf_duration"),
                                self.config.get_float("time_between_vhf_pings_in_sec") * 5 + 0.1,
                                self.trigger_system)
+                self.sensors.append(self.vhf)
             if self.use_audio_trigger:
                 self.audio.start(use_trigger=True)
-
-
 
         self.main_loop()
 
@@ -102,15 +104,18 @@ class BatRack(object):
         quit()
 
     ############################################# main loop ############################################################
-    @staticmethod
-    def main_loop():
+    def main_loop(self):
         """
         it is only a always running dummy loop
         :return: None
         """
+        d = {}
         while True:
-            time.sleep(1)
-            Helper.print_message("sleeping")
+            for sensor in self.sensors:
+                status = sensor.get_status()
+                for item_name in status.keys():
+                    Helper.print_message("{}: {}".format(item_name, status[item_name]))
+            time.sleep(10)
 
 
 if __name__ == "__main__":

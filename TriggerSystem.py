@@ -1,6 +1,4 @@
 import Helper
-import Sensors.Audio as Audio
-import Sensors.CameraLightController as CameraLightController
 
 
 class TriggerSystem:

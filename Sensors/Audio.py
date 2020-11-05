@@ -6,9 +6,10 @@ import time
 import wave
 import threading
 import Helper
+import Sensors.Sensor as Sensor
 
 
-class Audio:
+class Audio(Sensor):
     def __init__(self,
                  data_folder,
                  threshold_dbfs,
@@ -57,6 +58,8 @@ class Audio:
         self.quiet_count = 0
         self.pings = 0
         self.audio_recording = False
+        self.trigger_events_since_last_status = 0
+        self.use_trigger = False
 
     def start(self, use_trigger: bool = False):
         """
@@ -81,10 +84,18 @@ class Audio:
         :return:
         """
         self.__stop_record()
-        time.sleep(2)
         self.stream.stop_stream()
         self.stream.close()
         self.pa.terminate()
+
+    def get_status(self) -> dict:
+        """
+        delivers some nice information about the audio sensor since the last call
+        :return:
+        """
+        return_values = {"trigger events": self.trigger_events_since_last_status, "use trigger": self.use_trigger}
+        self.trigger_events_since_last_status = 0
+        return return_values
 
     def __find_input_device(self) -> int:
         """
@@ -157,6 +168,7 @@ class Audio:
         :param use_trigger: decides if the recording is continuous or triggered by the audio itself
         :return:
         """
+        self.use_trigger = use_trigger
         while True:
             if self.recording_thread_stopped:
                 self.__save()
@@ -190,6 +202,7 @@ class Audio:
                 Helper.print_message("ping")
             if self.pings >= 2 and not self.audio_recording:
                 Helper.print_message("audio_recording started")
+                self.trigger_events_since_last_status += 1
                 self.audio_recording = True
                 self.trigger_system.start_sequence_audio()
                 self.current_start_time = time.time()
