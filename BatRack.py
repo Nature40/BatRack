@@ -114,7 +114,7 @@ class BatRack(object):
             for sensor in self.sensors:
                 status = sensor.get_status()
                 for item_name in status.keys():
-                    Helper.print_message("{}: {}".format(item_name, status[item_name]))
+                    Helper.print_message("sensor: {} {}: {}".format(str(type(sensor)), item_name, status[item_name]))
             time.sleep(10)
 
 
