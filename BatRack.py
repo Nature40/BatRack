@@ -71,6 +71,7 @@ class BatRack(object):
                                self.config.get_float("vhf_duration"),
                                self.config.get_float("time_between_vhf_pings_in_sec") * 5 + 0.1,
                                self.trigger_system)
+                self.vhf.start()
                 self.sensors.append(self.vhf)
             if self.use_audio_trigger:
                 self.audio.start(use_trigger=True)

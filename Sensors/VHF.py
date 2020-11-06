@@ -45,6 +45,7 @@ class VHF(Sensor):
         self.stopped = True
 
     def start(self):
+        Helper.print_message("Start VHF sensor")
         check_signal_for_active_bats = threading.Thread(target=self.__check_vhf_signal_for_active_bats, args=())
         check_signal_for_active_bats.start()
         check_frequencies_for_inactivity = threading.Thread(target=self.__check_vhf_frequencies_for_inactivity, args=())
@@ -139,6 +140,7 @@ class VHF(Sensor):
                 if self.stopped:
                     break
                 now = datetime.datetime.utcnow()
+                Helper.print_message("checking for active bats")
                 query_results = self.__query_for_frequency_and_signal_strength(self.vhf_threshold,
                                                               self.vhf_duration,
                                                               now - datetime.timedelta(

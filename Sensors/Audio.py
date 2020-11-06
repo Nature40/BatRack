@@ -67,7 +67,7 @@ class Audio(Sensor):
         :param use_trigger:
         :return:
         """
-        Helper.print_message("Start Audio")
+        Helper.print_message("Start audio sensor")
         self.__start_new_file()
         self.__record(use_trigger)
 

@@ -1,5 +1,6 @@
 import RPi.GPIO as GPIO
 from Sensors.Sensor import Sensor
+import Helper
 
 
 class CameraLightController(Sensor):
@@ -13,6 +14,7 @@ class CameraLightController(Sensor):
         self.current_state = False
 
     def start(self):
+        Helper.print_message("Start camera and light controller")
         self.current_state = True
         self.__start_led()
         self.__start_camera()
