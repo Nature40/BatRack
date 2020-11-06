@@ -57,7 +57,7 @@ class VHF(Sensor):
         """
         present_and_inactive_bats = [x for x in self.vhf_frequencies if x not in self.currently_active_vhf_frequencies]
         absent_bats = [x for x in self.vhf_frequencies if
-                       x not in self.currently_active_vhf_frequencies and x not in self.present_and_active_bats]
+                       x not in (self.currently_active_vhf_frequencies or self.present_and_active_bats)]
         return_values = {"running": not self.stopped,
                          "recording": self.vhf_recording,
                          "trigger events": self.trigger_events_since_last_status,
@@ -147,8 +147,10 @@ class VHF(Sensor):
                 self.present_and_active_bats = []
                 for result in query_results:
                     frequency, _ = result
+                    Helper.print_message("This frequency is detected: {}".format(frequency))
                     if self.__is_frequency_currently_active(frequency):
                         self.present_and_active_bats.append(self.__get_matching_bat_frequency(frequency))
+                        Helper.print_message("This frequency is additional active: {}".format(frequency))
                         current_round_check = True
                         last_vhf_ping = now
 
