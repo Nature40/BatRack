@@ -99,7 +99,7 @@ class VHF(Sensor):
         """
         for wanted_frequency in self.currently_active_vhf_frequencies:
             if wanted_frequency - self.frequency_range_for_vhf_frequency < \
-                    (frequency + self.vhf_middle_frequency / 1000) < \
+                    (frequency + self.vhf_middle_frequency) / 1000 < \
                     wanted_frequency + self.frequency_range_for_vhf_frequency:
                 return True
         return False
@@ -112,7 +112,7 @@ class VHF(Sensor):
         """
         for wanted_frequency in self.vhf_frequencies:
             if wanted_frequency - self.frequency_range_for_vhf_frequency < \
-                    (frequency + self.vhf_middle_frequency / 1000) \
+                    (frequency + self.vhf_middle_frequency) / 1000 \
                     < wanted_frequency + self.frequency_range_for_vhf_frequency:
                 return True
         return False
@@ -124,7 +124,7 @@ class VHF(Sensor):
         """
         for wanted_frequency in self.vhf_frequencies:
             if wanted_frequency - self.frequency_range_for_vhf_frequency < \
-                    (frequency + self.vhf_middle_frequency / 1000) < \
+                    (frequency + self.vhf_middle_frequency) / 1000 < \
                     wanted_frequency + self.frequency_range_for_vhf_frequency:
                 return wanted_frequency
 
@@ -148,7 +148,7 @@ class VHF(Sensor):
                 self.present_and_active_bats = []
                 for result in query_results:
                     frequency, _ = result
-                    real_frequency = frequency + (self.vhf_middle_frequency / 1000)
+                    real_frequency = (frequency + self.vhf_middle_frequency) / 1000.0
                     Helper.print_message("This frequency is detected: {}".format(real_frequency))
                     if self.__is_frequency_currently_active(frequency):
                         self.present_and_active_bats.append(self.__get_matching_bat_frequency(frequency))
