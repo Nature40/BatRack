@@ -166,7 +166,7 @@ class VHF(Sensor):
                 else:
                     if self.vhf_recording and (now - last_vhf_ping) > datetime.timedelta(
                             seconds=self.observation_time_for_ping_in_sec):
-                        self.trigger_system.start_sequence_vhf()
+                        self.trigger_system.stop_sequence_vhf()
                         self.vhf_recording = False
                         Helper.print_message("vhf_recording stop", False)
                     time.sleep(0.2)
