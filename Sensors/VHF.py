@@ -142,19 +142,22 @@ class VHF(Sensor):
                 now = datetime.datetime.utcnow()
                 start = time.time()
                 query_results = self.__query_for_frequency_and_signal_strength(self.vhf_threshold,
-                                                              self.vhf_duration,
-                                                              now - datetime.timedelta(
-                                                              seconds=self.observation_time_for_ping_in_sec))
+                                                                               self.vhf_duration,
+                                                                               now - datetime.timedelta(seconds=self.observation_time_for_ping_in_sec))
                 Helper.print_message("query check for active bats takes {}s".format(time.time() - start))
                 now = datetime.datetime.utcnow()
                 self.present_and_active_bats = []
                 for result in query_results:
                     frequency, signal_strength = result
                     real_frequency = (frequency + self.vhf_middle_frequency) / 1000.0
-                    Helper.print_message("This frequency is detected: {}".format(real_frequency))
+                    Helper.print_message("This frequency is detected: {} with signal strength: {}".format(
+                        real_frequency,
+                        signal_strength))
                     if self.__is_frequency_currently_active(frequency):
                         self.present_and_active_bats.append(self.__get_matching_bat_frequency(frequency))
-                        Helper.print_message("This frequency is additional active: {}".format(real_frequency))
+                        Helper.print_message("This frequency is additional active: {} with signal strength: {}".format(
+                            real_frequency,
+                            signal_strength))
                         current_round_check = True
                         last_vhf_ping = now
 
