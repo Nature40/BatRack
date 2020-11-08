@@ -140,14 +140,16 @@ class VHF(Sensor):
                 if self.stopped:
                     break
                 now = datetime.datetime.utcnow()
+                start = time.time()
                 query_results = self.__query_for_frequency_and_signal_strength(self.vhf_threshold,
                                                               self.vhf_duration,
                                                               now - datetime.timedelta(
                                                               seconds=self.observation_time_for_ping_in_sec))
+                Helper.print_message("query check for active bats takes {}s".format(time.time() - start))
                 now = datetime.datetime.utcnow()
                 self.present_and_active_bats = []
                 for result in query_results:
-                    frequency, _ = result
+                    frequency, signal_strength = result
                     real_frequency = (frequency + self.vhf_middle_frequency) / 1000.0
                     Helper.print_message("This frequency is detected: {}".format(real_frequency))
                     if self.__is_frequency_currently_active(frequency):
@@ -183,10 +185,11 @@ class VHF(Sensor):
                 if self.stopped:
                     break
                 now = datetime.datetime.utcnow()
+                start = time.time()
                 query_results = self.__query_for_frequency_and_signal_strength(self.vhf_threshold,
                                                                                self.vhf_duration,
                                                                                now - datetime.timedelta(seconds=60))
-
+                Helper.print_message("query check for inactivity takes {}s".format(time.time() - start))
                 signals = defaultdict(list)
                 for result in query_results:
                     frequency, signal_strength = result
