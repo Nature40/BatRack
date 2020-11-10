@@ -18,7 +18,9 @@ class Audio(Sensor):
                  audio_split,
                  min_seconds_for_audio_recording,
                  debug_on,
-                 trigger_system):
+                 trigger_system,
+                 silence_time,
+                 noise_time):
         self.data_folder = data_folder
         self.threshold_dbfs = threshold_dbfs
         self.audio_split = audio_split
@@ -32,10 +34,12 @@ class Audio(Sensor):
         self.format = pyaudio.paInt16
         self.input_block_time = 0.05
         self.input_frames_per_block = int(self.sampling_rate * self.input_block_time)
+        self.silence_time = silence_time
         # if we have longer that this many blocks silence, it's a new sequence
-        self.silence_time = 1.0 / self.input_block_time
+        self.silence_blocks = self.silence_time / self.input_block_time
         # if the noise was longer than this many blocks, it's noise
-        self.max_tap_blocks = 0.15 / self.input_block_time
+        self.noise_time = noise_time
+        self.max_tap_blocks = self.noise_time / self.input_block_time
         self.blocks_per_sec = self.sampling_rate / self.input_frames_per_block
         self.debug_on = debug_on
 
@@ -105,16 +109,18 @@ class Audio(Sensor):
         device_index = None
         for i in range(self.pa.get_device_count()):
             dev_info = self.pa.get_device_info_by_index(i)
-            Helper.print_message("Device {}: {}".format(i, dev_info["name"]), True)
+            Helper.print_message("Device {}: {}".format(i, dev_info["name"]), is_debug=True, debug_on=self.debug_on)
 
             for keyword in ["mic", "input"]:
                 if keyword in dev_info["name"].lower():
-                    Helper.print_message("Found an input: device {} - {}".format(i, dev_info["name"]), True)
+                    Helper.print_message("Found an input: device {} - {}".format(i, dev_info["name"]),
+                                         is_debug=False, debug_on=self.debug_on)
                     device_index = i
                     return device_index
 
         if device_index is None:
-            Helper.print_message("No preferred input found; using default input device.", False)
+            Helper.print_message("No preferred input found; using default input device.",
+                                 is_debug=False, debug_on=self.debug_on)
 
     def __open_mic_stream(self):
         """
@@ -146,8 +152,9 @@ class Audio(Sensor):
         store the last recorded audio to the filesystem and clears the list of frames
         :return:
         """
-        Helper.print_message("len of frames: {}".format(len(self.frames)))
-        Helper.print_message("file name: {}{}.wav".format(self.data_folder, self.current_start_time_str))
+        Helper.print_message("len of frames: {}".format(len(self.frames)), is_debug=False, debug_on=self.debug_on)
+        Helper.print_message("file name: {}{}.wav".format(self.data_folder, self.current_start_time_str),
+                             is_debug=False, debug_on=self.debug_on)
         wave_file = wave.open(self.data_folder + self.current_start_time_str + ".wav", 'wb')
         wave_file.setnchannels(self.channels)
         wave_file.setsampwidth(self.pa.get_sample_size(self.format))
@@ -174,7 +181,7 @@ class Audio(Sensor):
                 self.__save()
                 return
             if self.__is_time_for_audio_split():
-                Helper.print_message("doing audio split")
+                Helper.print_message("doing audio split", is_debug=False, debug_on=self.debug_on)
                 self.__save()
             if use_trigger:
                 frame = self.__read_frame()
@@ -199,14 +206,14 @@ class Audio(Sensor):
             # quiet block.
             if 1 <= self.noisy_count <= self.max_tap_blocks:
                 self.pings += 1
-                Helper.print_message("ping")
+                Helper.print_message("ping", is_debug=False, debug_on=self.debug_on)
             if self.pings >= 2 and not self.audio_recording:
-                Helper.print_message("audio_recording started")
+                Helper.print_message("audio_recording started", is_debug=False, debug_on=self.debug_on)
                 self.trigger_events_since_last_status += 1
                 self.audio_recording = True
                 self.trigger_system.start_sequence_audio()
                 self.current_start_time = time.time()
-            if self.quiet_count > self.silence_time and self.audio_recording:
+            if self.quiet_count > self.silence_blocks and self.audio_recording:
                 if time.time() > self.current_start_time + self.min_seconds_for_audio_recording:
                     self.pings = 0
                     self.audio_recording = False
@@ -253,9 +260,9 @@ class Audio(Sensor):
         dbfs_spectrum = 20 * np.log10(np.abs(spectrum) / max([self.window_function_dbfs_max, 1]))
         bin_peak_index = dbfs_spectrum.argmax()
         peak_db = dbfs_spectrum[bin_peak_index]
-        if self.debug_on:
-            peak_frequency_hz = bin_peak_index * self.sampling_rate / self.input_frames_per_block
-            Helper.print_message("DEBUG: Peak freq hz: " + str(peak_frequency_hz) + " dBFS: " + str(peak_db), True)
+        peak_frequency_hz = bin_peak_index * self.sampling_rate / self.input_frames_per_block
+        Helper.print_message("Peak freq hz: " + str(peak_frequency_hz) + " dBFS: " + str(peak_db),
+                             is_debug=True, debug_on=self.debug_on)
         return peak_db
 
     def __check_signal_for_threshold(self, peak_db) -> bool:

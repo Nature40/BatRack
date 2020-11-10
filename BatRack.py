@@ -43,13 +43,15 @@ class BatRack(object):
             self.trigger_system.set_camera_and_light_controller(self.camera_light_controller)
         if self.use_microphone:
             self.audio = Audio(self.data_path,
-                               self.config.get_int("threshold_dbfs"),
-                               self.config.get_int("highpass_frequency"),
+                               self.config.get_int("audio_threshold_db"),
+                               self.config.get_int("audio_highpass_frequency"),
                                self.config.get_int("ring_buffer_length_in_sec"),
                                self.config.get_int("audio_split"),
-                               self.config.get_int("min_seconds_for_audio_recording"),
+                               self.config.get_int("audio_min_seconds_for_recording"),
                                self.debug_on,
-                               self.trigger_system)
+                               self.trigger_system,
+                               self.config.get_float("audio_silence_time"),
+                               self.config.get_float("audio_noise_time"))
             self.sensors.append(self.audio)
             self.trigger_system.set_audio(self.audio)
         if self.run_continuous:
@@ -63,13 +65,14 @@ class BatRack(object):
                                db_password,
                                db_database,
                                self.config.get_list("vhf_frequencies"),
-                               self.config.get_int("frequency_range_for_vhf_frequency"),
+                               self.config.get_int("vhf_frequency_range_for_frequency"),
                                self.config.get_int("vhf_middle_frequency"),
                                self.config.get_int("vhf_inactive_threshold"),
-                               self.config.get_float("time_between_vhf_pings_in_sec"),
+                               self.config.get_float("vhf_time_between_pings_in_sec"),
                                self.config.get_int("vhf_threshold"),
                                self.config.get_float("vhf_duration"),
-                               self.config.get_float("time_between_vhf_pings_in_sec") * 5 + 0.1,
+                               self.config.get_float("vhf_time_between_pings_in_sec") * 5 + 0.1,
+                               self.debug_on,
                                self.trigger_system)
                 self.vhf.start()
                 self.sensors.append(self.vhf)
