@@ -65,7 +65,7 @@ class BatRack(object):
                                db_password,
                                db_database,
                                self.config.get_list("vhf_frequencies"),
-                               self.config.get_int("vhf_frequency_range_for_frequency"),
+                               self.config.get_int("vhf_frequency_range"),
                                self.config.get_int("vhf_middle_frequency"),
                                self.config.get_int("vhf_inactive_threshold"),
                                self.config.get_float("vhf_time_between_pings_in_sec"),
