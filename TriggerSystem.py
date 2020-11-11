@@ -35,7 +35,7 @@ class TriggerSystem:
         :return:
         """
         if self.__check_recorder_at_start() and self.camera_and_light_controller is not None:
-            self.audio.start()
+            self.audio.start(use_trigger=False)
 
     def stop_sequence_camera(self):
         """
@@ -43,7 +43,7 @@ class TriggerSystem:
         :return:
         """
         if self.__check_recorder_at_stop() and self.audio is not None:
-            self.audio.stop()
+            self.audio.stop(use_trigger=False)
 
     def start_sequence_vhf(self):
         """
@@ -51,7 +51,7 @@ class TriggerSystem:
         :return:
         """
         if self.__check_recorder_at_start() and self.camera_and_light_controller is not None and self.audio is not None:
-            self.audio.start()
+            self.audio.start(use_trigger=False)
             self.camera_and_light_controller.start()
 
     def stop_sequence_vhf(self):
@@ -60,7 +60,7 @@ class TriggerSystem:
         :return:
         """
         if self.__check_recorder_at_stop() and self.camera_and_light_controller is not None and self.audio is not None:
-            self.audio.stop()
+            self.audio.stop(use_trigger=False)
             self.camera_and_light_controller.stop()
 
     def __check_recorder_at_start(self) -> bool:

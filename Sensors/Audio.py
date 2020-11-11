@@ -64,6 +64,8 @@ class Audio(Sensor):
         self.audio_recording = False
         self.trigger_events_since_last_status = 0
         self.use_trigger = False
+        self.running = False
+        self.trigger_from_extern = False
 
     def start(self, use_trigger: bool = False):
         """
@@ -71,16 +73,25 @@ class Audio(Sensor):
         :param use_trigger:
         :return:
         """
-        Helper.print_message("Start audio sensor")
-        self.__start_new_file()
-        self.__record(use_trigger)
+        if not self.running:
+            Helper.print_message("Start audio sensor")
+            self.__start_new_file()
+            self.__record(use_trigger)
+        else:
+            if not use_trigger and self.use_trigger:
+                self.trigger_from_extern = True
 
-    def stop(self):
+    def stop(self, use_trigger: bool = False):
         """
         stop audio recording if the microphone should be used and start writing the audio to filesystem
         :return:
         """
-        self.__stop_record()
+        if self.running:
+            if use_trigger == self.use_trigger:
+                self.__stop_record()
+                self.running = False
+            elif not use_trigger and self.use_trigger:
+                self.trigger_from_extern = False
 
     def clean_up(self):
         """
@@ -88,6 +99,8 @@ class Audio(Sensor):
         :return:
         """
         self.__stop_record()
+        self.running = False
+        self.trigger_from_extern = False
         self.stream.stop_stream()
         self.stream.close()
         self.pa.terminate()
@@ -185,8 +198,11 @@ class Audio(Sensor):
                 self.__save()
             if use_trigger:
                 frame = self.__read_frame()
-                if self.__check_trigger_state(frame):
+                if self.trigger_from_extern:
                     self.frames.append(frame)
+                else:
+                    if self.__check_trigger_state(frame):
+                        self.frames.append(frame)
             else:
                 self.frames.append(self.__read_frame())
 
