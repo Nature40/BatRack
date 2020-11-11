@@ -160,7 +160,8 @@ class VHF(Sensor):
                         is_debug=True,
                         debug_on=self.debug_on)
                     if self.__is_frequency_currently_active(frequency):
-                        self.present_and_active_bats.append(self.__get_matching_bat_frequency(frequency))
+                        if self.__get_matching_bat_frequency(frequency) not in self.present_and_active_bats:
+                            self.present_and_active_bats.append(self.__get_matching_bat_frequency(frequency))
                         Helper.print_message("This frequency is additional active: {} with signal strength: {}".format(
                             real_frequency,
                             signal_strength),
