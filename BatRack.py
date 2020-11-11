@@ -11,7 +11,7 @@ import Helper
 
 class BatRack(object):
     def __init__(self, db_user: str, db_password: str, db_database: str, config_file_name: str):
-        self.debug_on = False
+        self.debug_on = self.config.get_bool("debug")
         signal.signal(signal.SIGINT, self.signal_handler)
 
         self.db_user = db_user
@@ -125,5 +125,5 @@ class BatRack(object):
 
 
 if __name__ == "__main__":
-    batRecorder = BatRack("pi", "natur", "rteu", "/boot/BatRack_test.conf")
+    batRecorder = BatRack("pi", "natur", "rteu", "/home/pi/BatRack/BatRack.conf")
 

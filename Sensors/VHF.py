@@ -148,7 +148,7 @@ class VHF(Sensor):
                                                                                self.vhf_duration,
                                                                                now - datetime.timedelta(seconds=self.observation_time_for_ping_in_sec))
                 Helper.print_message("query check for active bats takes {}s".format(time.time() - start),
-                                     is_debug=False, debug_on=self.debug_on)
+                                     is_debug=True, debug_on=self.debug_on)
                 now = datetime.datetime.utcnow()
                 self.present_and_active_bats = []
                 for result in query_results:
