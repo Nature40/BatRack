@@ -60,7 +60,7 @@ class VHF(Sensor):
         """
         present_and_inactive_bats = [x for x in self.vhf_frequencies if x not in self.currently_active_vhf_frequencies]
         absent_bats = [x for x in self.vhf_frequencies if
-                       x not in (self.currently_active_vhf_frequencies or self.present_and_active_bats)]
+                       x not in (present_and_inactive_bats or self.present_and_active_bats)]
         return_values = {"running": not self.stopped,
                          "recording": self.vhf_recording,
                          "trigger events": self.trigger_events_since_last_status,
