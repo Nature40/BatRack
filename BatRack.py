@@ -11,13 +11,14 @@ import Helper
 
 class BatRack(object):
     def __init__(self, db_user: str, db_password: str, db_database: str, config_file_name: str):
-        self.debug_on = self.config.get_bool("debug")
         signal.signal(signal.SIGINT, self.signal_handler)
 
         self.db_user = db_user
         self.db_password = db_password
         self.db_database = db_database
         self.config = Config(config_file_name)
+
+        self.debug_on = self.config.get_bool("debug")
 
         self.data_path: str = self.config.get_string("data_path")
 
