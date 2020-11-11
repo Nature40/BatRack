@@ -27,6 +27,8 @@ class BatRack(object):
         self.use_vhf_trigger: bool = self.config.get_bool("use_vhf_trigger")
         self.run_continuous: bool = self.config.get_bool("run_continuous")
 
+        self.waiting_time_between_status_updates = self.config.get_int("waiting_time_between_status_updates")
+
         time.sleep(self.config.get_int("waiting_time_after_start"))
 
         self.camera_light_controller = None
@@ -119,7 +121,7 @@ class BatRack(object):
                 status = sensor.get_status()
                 for item_name in status.keys():
                     Helper.print_message("sensor: {} {}: {}".format(str(type(sensor)), item_name, status[item_name]))
-            time.sleep(300)
+            time.sleep(self.waiting_time_between_status_updates)
 
 
 if __name__ == "__main__":
