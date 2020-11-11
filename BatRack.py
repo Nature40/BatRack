@@ -47,7 +47,7 @@ class BatRack(object):
                                self.config.get_int("audio_highpass_frequency"),
                                self.config.get_int("ring_buffer_length_in_sec"),
                                self.config.get_int("audio_split"),
-                               self.config.get_int("audio_min_seconds_for_recording"),
+                               self.config.get_int("audio_min_seconds_follow_up_recording"),
                                self.debug_on,
                                self.trigger_system,
                                self.config.get_float("audio_silence_time"),

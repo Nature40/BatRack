@@ -16,7 +16,7 @@ class Audio(Sensor):
                  highpass_frequency,
                  ring_buffer_length_in_sec,
                  audio_split,
-                 min_seconds_for_audio_recording,
+                 min_seconds_follow_up_recording,
                  debug_on,
                  trigger_system,
                  silence_time,
@@ -25,7 +25,7 @@ class Audio(Sensor):
         self.threshold_dbfs = threshold_dbfs
         self.audio_split = audio_split
         self.trigger_system = trigger_system
-        self.min_seconds_for_audio_recording = min_seconds_for_audio_recording
+        self.min_seconds_follow_up_recording = min_seconds_follow_up_recording
 
         self.pa = pyaudio.PyAudio()
         self.sampling_rate = 250000
@@ -54,7 +54,7 @@ class Audio(Sensor):
         self.stream = self.__open_mic_stream()
 
         self.current_start_time_str: str = ""
-        self.current_start_time: int = 0
+        self.current_trigger_time: int = 0
         self.frames = []
         self.recording_thread: threading = None
         self.recording_thread_stopped = False
@@ -144,7 +144,7 @@ class Audio(Sensor):
         :return:
         """
         self.current_start_time_str = datetime.datetime.now().strftime("%Y-%m-%dT%H_%M_%S")
-        self.current_start_time = time.time()
+        self.current_trigger_time = time.time()
         self.frames = []
 
     def __save(self):
@@ -207,14 +207,14 @@ class Audio(Sensor):
             if 1 <= self.noisy_count <= self.max_tap_blocks:
                 self.pings += 1
                 Helper.print_message("ping", is_debug=False, debug_on=self.debug_on)
+                self.current_trigger_time = time.time()
             if self.pings >= 2 and not self.audio_recording:
                 Helper.print_message("audio_recording started", is_debug=False, debug_on=self.debug_on)
                 self.trigger_events_since_last_status += 1
                 self.audio_recording = True
                 self.trigger_system.start_sequence_audio()
-                self.current_start_time = time.time()
             if self.quiet_count > self.silence_blocks and self.audio_recording:
-                if time.time() > self.current_start_time + self.min_seconds_for_audio_recording:
+                if time.time() > self.current_trigger_time + self.min_seconds_follow_up_recording:
                     self.pings = 0
                     self.audio_recording = False
                     self.trigger_system.stop_sequence_audio()
@@ -269,4 +269,4 @@ class Audio(Sensor):
         return peak_db > self.threshold_dbfs
 
     def __is_time_for_audio_split(self) -> bool:
-        return time.time() > self.current_start_time + self.audio_split
+        return time.time() > self.current_trigger_time + self.audio_split
