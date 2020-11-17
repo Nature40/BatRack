@@ -1,4 +1,6 @@
-import Helper
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class TriggerSystem:
@@ -69,7 +71,7 @@ class TriggerSystem:
         :return: if the recording should be started
         """
         self.count_recorder += 1
-        Helper.print_message("start {}".format(self.count_recorder), False)
+        logger.info("start {}".format(self.count_recorder), False)
         return self.count_recorder == 1
 
     def __check_recorder_at_stop(self) -> bool:

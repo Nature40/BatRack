@@ -1,22 +1,27 @@
 import signal
 import time
 import threading
-from Sensors.Audio import Audio
-from Sensors.VHF import VHF
-from Sensors.CameraLightController import CameraLightController
-from Config import Config
-from TriggerSystem import TriggerSystem
-import Helper
+import sys
+import logging
+
+from batrack.sensors import CameraLightController
+from batrack.sensors import Audio
+from batrack.sensors import VHF
+from batrack.config import ConfigLoader
+from batrack.triggersystem import TriggerSystem
 
 
-class BatRack(object):
-    def __init__(self, db_user: str, db_password: str, db_database: str, config_file_name: str):
+logger = logging.getLogger(__name__)
+
+
+class BatRack:
+    def __init__(self, config_file_name: str):
         signal.signal(signal.SIGINT, self.signal_handler)
 
-        self.db_user = db_user
-        self.db_password = db_password
-        self.db_database = db_database
-        self.config = Config(config_file_name)
+        self.db_database = "rteu"
+        self.db_user = "pi"
+        self.db_password = "natur"
+        self.config = ConfigLoader(config_file_name)
 
         self.debug_on = self.config.get_bool("debug")
 
@@ -24,11 +29,13 @@ class BatRack(object):
 
         self.use_camera: bool = self.config.get_bool("use_camera")
         self.use_microphone: bool = self.config.get_bool("use_microphone")
-        self.use_audio_trigger: bool = self.config.get_bool("use_audio_trigger")
+        self.use_audio_trigger: bool = self.config.get_bool(
+            "use_audio_trigger")
         self.use_vhf_trigger: bool = self.config.get_bool("use_vhf_trigger")
         self.run_continuous: bool = self.config.get_bool("run_continuous")
 
-        self.waiting_time_between_status_updates = self.config.get_int("waiting_time_between_status_updates")
+        self.waiting_time_between_status_updates = self.config.get_int(
+            "waiting_time_between_status_updates")
 
         time.sleep(self.config.get_int("waiting_time_after_start"))
 
@@ -41,19 +48,25 @@ class BatRack(object):
         self.sensors = []
 
         if self.use_camera:
-            self.camera_light_controller = CameraLightController(self.config.get_int("led_pin"))
+            self.camera_light_controller = CameraLightController(
+                self.config.get_int("led_pin"))
             self.sensors.append(self.camera_light_controller)
-            self.trigger_system.set_camera_and_light_controller(self.camera_light_controller)
+            self.trigger_system.set_camera_and_light_controller(
+                self.camera_light_controller)
         if self.use_microphone:
             self.audio = Audio(self.data_path,
                                self.config.get_int("audio_threshold_db"),
-                               self.config.get_int("audio_highpass_frequency"),
-                               self.config.get_int("ring_buffer_length_in_sec"),
+                               self.config.get_int(
+                                   "audio_highpass_frequency"),
+                               self.config.get_int(
+                                   "ring_buffer_length_in_sec"),
                                self.config.get_int("audio_split"),
-                               self.config.get_int("audio_min_seconds_follow_up_recording"),
+                               self.config.get_int(
+                                   "audio_min_seconds_follow_up_recording"),
                                self.debug_on,
                                self.trigger_system,
-                               self.config.get_float("audio_silence_time"),
+                               self.config.get_float(
+                                   "audio_silence_time"),
                                self.config.get_float("audio_noise_time"))
             self.sensors.append(self.audio)
             self.trigger_system.set_audio(self.audio)
@@ -64,17 +77,19 @@ class BatRack(object):
                 self.audio.start(use_trigger=False)
         else:
             if self.use_vhf_trigger:
-                self.vhf = VHF(db_user,
-                               db_password,
-                               db_database,
+                self.vhf = VHF(self.db_user,
+                               self.db_password,
+                               self.db_database,
                                self.config.get_list("vhf_frequencies"),
                                self.config.get_int("vhf_frequency_range"),
                                self.config.get_int("vhf_middle_frequency"),
                                self.config.get_int("vhf_inactive_threshold"),
-                               self.config.get_float("vhf_time_between_pings_in_sec"),
+                               self.config.get_float(
+                                   "vhf_time_between_pings_in_sec"),
                                self.config.get_int("vhf_threshold"),
                                self.config.get_float("vhf_duration"),
-                               self.config.get_float("vhf_time_between_pings_in_sec") * 5 + 0.1,
+                               self.config.get_float(
+                                   "vhf_time_between_pings_in_sec") * 5 + 0.1,
                                self.debug_on,
                                self.trigger_system)
                 self.vhf.start()
@@ -83,8 +98,6 @@ class BatRack(object):
                 self.audio.start(use_trigger=True)
 
         self.main_loop()
-
-    # ####################################### helper functions #########################################################
 
     def __clean_up(self):
         """
@@ -95,7 +108,7 @@ class BatRack(object):
             self.camera_light_controller.clean_up()
         if self.use_microphone:
             self.audio.clean_up()
-        Helper.print_message("everything is cleaned up", False)
+        logger.info("everything is cleaned up")
 
     def signal_handler(self, sig=None, frame=None):
         """
@@ -104,27 +117,30 @@ class BatRack(object):
         :param frame:
         :return:
         """
-        Helper.print_message("You pressed Ctrl+C!", False)
+        logger.info("You pressed Ctrl+C!")
         clean_up_thread = threading.Thread(target=self.__clean_up, args=())
         clean_up_thread.start()
         time.sleep(1)
         quit()
 
-    ############################################# main loop ############################################################
     def main_loop(self):
         """
         it is only a always running dummy loop
         :return: None
         """
-        d = {}
         while True:
             for sensor in self.sensors:
                 status = sensor.get_status()
                 for item_name in status.keys():
-                    Helper.print_message("sensor: {} {}: {}".format(str(type(sensor)), item_name, status[item_name]))
+                    logger.info("sensor: {} {}: {}".format(
+                        str(type(sensor)), item_name, status[item_name]))
             time.sleep(self.waiting_time_between_status_updates)
 
 
 if __name__ == "__main__":
-    batRecorder = BatRack("pi", "natur", "rteu", "/home/pi/BatRack/BatRack.conf")
+    logging.basicConfig(level=logging.DEBUG)
 
+    if len(sys.argv) > 1:
+        batRecorder = BatRack(sys.argv[1])
+    else:
+        batRecorder = BatRack("etc/BatRack.conf")

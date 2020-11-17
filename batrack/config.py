@@ -1,9 +1,14 @@
 from configparser import ConfigParser
-from BatRackExceptions import ConfigParserException
 import json
 
 
-class Config:
+class ConfigParserException:
+    def __init__(self, message, config):
+        self.message = message
+        self.config = config
+
+
+class ConfigLoader:
     def __init__(self, complete_file_name):
         self.config_object = ConfigParser()
         self.config_object.read(complete_file_name)
