@@ -31,12 +31,12 @@ class AbstractSensor:
 
 
 class CameraLightController(AbstractSensor):
-    def __init__(self, led_pin):
-        self.led_pin = led_pin
+    def __init__(self, light_pin: int):
+        self.light_pin = int(light_pin)
         GPIO.setmode(GPIO.BCM)
         GPIO.setwarnings(False)
-        GPIO.setup(self.led_pin, GPIO.OUT)
-        GPIO.output(self.led_pin, GPIO.LOW)
+        GPIO.setup(self.light_pin, GPIO.OUT)
+        GPIO.output(self.light_pin, GPIO.LOW)
         self.triggered_events_since_last_status = 0
         self.current_state = False
 
@@ -56,7 +56,7 @@ class CameraLightController(AbstractSensor):
         clean up the GPIO state and close the connection
         :return:
         """
-        GPIO.output(self.led_pin, GPIO.LOW)
+        GPIO.output(self.light_pin, GPIO.LOW)
         GPIO.cleanup()
 
     def get_status(self) -> dict:
@@ -92,62 +92,74 @@ class CameraLightController(AbstractSensor):
         start the led spot via GPIO
         :return:
         """
-        GPIO.output(self.led_pin, GPIO.HIGH)
+        GPIO.output(self.light_pin, GPIO.HIGH)
 
     def __stop_led(self):
         """
         stop the led spot via GPIO
         :return:
         """
-        GPIO.output(self.led_pin, GPIO.LOW)
+        GPIO.output(self.light_pin, GPIO.LOW)
 
 
 class Audio(AbstractSensor):
     def __init__(self,
-                 data_folder,
-                 threshold_dbfs,
-                 highpass_frequency,
-                 ring_buffer_length_in_sec,
-                 audio_split,
-                 min_seconds_follow_up_recording,
-                 debug_on,
+                 data_path,
                  trigger_system,
-                 silence_time,
-                 noise_time):
-        self.data_folder = data_folder
-        self.threshold_dbfs = threshold_dbfs
-        self.audio_split = audio_split
+                 threshold_dbfs: int,
+                 highpass_hz: int,
+                 ring_buffer_len_s: float,
+                 wave_export_len_s: float,
+                 silence_duration_s: float,
+                 noise_duration_s: float,
+                 inter_recording_pause_s: float,
+                 ):
+
+        # instance variables
+        self.data_path = data_path
         self.trigger_system = trigger_system
-        self.min_seconds_follow_up_recording = min_seconds_follow_up_recording
 
+        # user-configuration values
+        self.threshold_dbfs = int(threshold_dbfs)
+        self.highpass_hz = int(highpass_hz)
+        self.wave_export_len_s = float(wave_export_len_s)
+        self.inter_recording_pause_s = float(inter_recording_pause_s)
+
+        sampling_rate = 250000
+        input_block_time = 0.05
+        input_frames_per_block = int(sampling_rate * input_block_time)
+        self.input_frames_per_block = input_frames_per_block
+        blocks_per_sec = sampling_rate / input_frames_per_block
+
+        self.silence_duration_blocks = float(
+            silence_duration_s) / input_block_time
+        self.max_tap_blocks = float(noise_duration_s) / input_block_time
+
+        # set pyaudio config
         self.pa = pyaudio.PyAudio()
-        self.sampling_rate = 250000
-        self.max_int_16 = 32767
-        self.channels = 1
-        self.format = pyaudio.paInt16
-        self.input_block_time = 0.05
-        self.input_frames_per_block = int(
-            self.sampling_rate * self.input_block_time)
-        self.silence_time = silence_time
-        # if we have longer that this many blocks silence, it's a new sequence
-        self.silence_blocks = self.silence_time / self.input_block_time
-        # if the noise was longer than this many blocks, it's noise
-        self.noise_time = noise_time
-        self.max_tap_blocks = self.noise_time / self.input_block_time
-        self.blocks_per_sec = self.sampling_rate / self.input_frames_per_block
-        self.debug_on = debug_on
+        pa_config = {
+            "format": pyaudio.paInt16,
+            "channels": 1,
+            "rate": sampling_rate,
+            "input": True,
+            "frames_per_buffer": input_frames_per_block,
+        }
 
-        self.filter_min_hz = highpass_frequency
-        self.freq_bins_hz = np.arange((self.input_frames_per_block / 2) + 1) / (
-            self.input_frames_per_block / float(self.sampling_rate))
-        self.window_function_dbfs_max = np.sum(
-            self.input_frames_per_block) / 2.0
+        # compute higher values
+        self.freq_bins_hz = np.arange(
+            (input_frames_per_block / 2) + 1) / \
+            (input_frames_per_block / float(pa_config["rate"]))
 
-        self.ring_buffer_length_in_sec = ring_buffer_length_in_sec
+        self.window_function_dbfs_max = np.sum(input_frames_per_block) / 2.0
+
+        blocks_per_sec = pa_config["rate"] / pa_config["frames_per_buffer"]
         self.ring_buffer = RingBuffer(
-            int(self.ring_buffer_length_in_sec * self.blocks_per_sec), dtype=np.str)
+            int(float(ring_buffer_len_s) * blocks_per_sec), dtype=np.str)
 
-        self.stream = self.__open_mic_stream()
+        # open input stream
+        device_index = self.__find_input_device()
+        self.stream = self.pa.open(
+            input_device_index=device_index, **pa_config)
 
         self.current_start_time_str: str = ""
         self.current_trigger_time: int = 0
@@ -216,37 +228,17 @@ class Audio(AbstractSensor):
         searches for a microphone and returns the device number
         :return: the device id
         """
-        device_index = None
-        for i in range(self.pa.get_device_count()):
-            dev_info = self.pa.get_device_info_by_index(i)
-            logger.debug(f"Device {i}: {dev_info['name']}")
+        for device_index in range(self.pa.get_device_count()):
+            dev_info = self.pa.get_device_info_by_index(device_index)
+            logger.debug(f"Device {device_index}: {dev_info['name']}")
 
             for keyword in ["mic", "input"]:
                 if keyword in dev_info["name"].lower():
                     logger.info(
-                        f"Found an input: device {i} - {dev_info['name']}")
-                    device_index = i
+                        f"Found an input: device {device_index} - {dev_info['name']}")
                     return device_index
 
-        if device_index is None:
-            logger.info(
-                "No preferred input found; using default input device.")
-
-    def __open_mic_stream(self):
-        """
-        open a PyAudio stream for the found device number and return the stream
-        :return:
-        """
-        device_index = self.__find_input_device()
-
-        stream = self.pa.open(format=self.format,
-                              channels=self.channels,
-                              rate=self.sampling_rate,
-                              input=True,
-                              input_device_index=device_index,
-                              frames_per_buffer=self.input_frames_per_block)
-
-        return stream
+        logger.info("No preferred input found; using default input device.")
 
     def __start_new_file(self):
         """
@@ -263,10 +255,10 @@ class Audio(AbstractSensor):
         :return:
         """
         logger.info(f"len of frames: {len(self.frames)}")
-        logger.info(
-            "file name: {self.data_folder}{self.current_start_time_str}.wav")
-        wave_file = wave.open(
-            self.data_folder + self.current_start_time_str + ".wav", 'wb')
+        file_path = self.data_path + self.current_start_time_str + ".wav"
+        logger.info(f"file name: {file_path}")
+        wave_file = wave.open(file_path, 'wb')
+
         wave_file.setnchannels(self.channels)
         wave_file.setsampwidth(self.pa.get_sample_size(self.format))
         wave_file.setframerate(self.sampling_rate)
@@ -328,7 +320,7 @@ class Audio(AbstractSensor):
                 self.audio_recording = True
                 self.trigger_system.start_sequence_audio()
             if self.quiet_count > self.silence_blocks and self.audio_recording:
-                if time.time() > self.current_trigger_time + self.min_seconds_follow_up_recording:
+                if time.time() > self.current_trigger_time + self.inter_recording_pause_s:
                     self.pings = 0
                     self.audio_recording = False
                     self.trigger_system.stop_sequence_audio()
@@ -356,14 +348,14 @@ class Audio(AbstractSensor):
 
     def __exec_fft(self, signal) -> np.fft.rfft:
         """
-        execute a fft for a given signal and cuts the the frequencies below self.filter_min_hz
+        execute a fft for a given signal and cuts the the frequencies below self.highpass_hz
         and return the resulting spectrum
         :param signal: givem signal to process the fft function
         :return:
         """
         data_int16 = np.frombuffer(signal, dtype=np.int16)
         spectrum = np.fft.rfft(data_int16)
-        spectrum[self.freq_bins_hz < self.filter_min_hz] = 0.000000001
+        spectrum[self.freq_bins_hz < self.highpass_hz] = 0.000000001
         return spectrum
 
     def __get_peak_db(self, spectrum: np.fft) -> int:
@@ -386,7 +378,7 @@ class Audio(AbstractSensor):
         return peak_db > self.threshold_dbfs
 
     def __is_time_for_audio_split(self) -> bool:
-        return time.time() > self.current_trigger_time + self.audio_split
+        return time.time() > self.current_trigger_time + self.wave_export_len_s
 
 
 class VHF(AbstractSensor):
@@ -402,7 +394,6 @@ class VHF(AbstractSensor):
                  vhf_threshold,
                  vhf_duration,
                  observation_time_for_ping_in_sec,
-                 debug_on,
                  trigger_system):
         self.db_user = db_user
         self.db_password = db_password
@@ -422,7 +413,6 @@ class VHF(AbstractSensor):
         self.vhf_recording = False
         self.trigger_events_since_last_status = 0
         self.present_and_active_bats = []
-        self.debug_on = debug_on
 
     def stop(self):
         self.stopped = True
