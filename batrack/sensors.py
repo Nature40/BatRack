@@ -137,7 +137,7 @@ class Audio(AbstractSensor):
 
         # set pyaudio config
         self.pa = pyaudio.PyAudio()
-        pa_config = {
+        self.pa_config = {
             "format": pyaudio.paInt16,
             "channels": 1,
             "rate": sampling_rate,
@@ -148,18 +148,19 @@ class Audio(AbstractSensor):
         # compute higher values
         self.freq_bins_hz = np.arange(
             (input_frames_per_block / 2) + 1) / \
-            (input_frames_per_block / float(pa_config["rate"]))
+            (input_frames_per_block / float(self.pa_config["rate"]))
 
         self.window_function_dbfs_max = np.sum(input_frames_per_block) / 2.0
 
-        blocks_per_sec = pa_config["rate"] / pa_config["frames_per_buffer"]
+        blocks_per_sec = self.pa_config["rate"] / \
+            self.pa_config["frames_per_buffer"]
         self.ring_buffer = RingBuffer(
             int(float(ring_buffer_len_s) * blocks_per_sec), dtype=np.str)
 
         # open input stream
         device_index = self.__find_input_device()
         self.stream = self.pa.open(
-            input_device_index=device_index, **pa_config)
+            input_device_index=device_index, **self.pa_config)
 
         self.current_start_time_str: str = ""
         self.current_trigger_time: int = 0
@@ -259,9 +260,10 @@ class Audio(AbstractSensor):
         logger.info(f"file name: {file_path}")
         wave_file = wave.open(file_path, 'wb')
 
-        wave_file.setnchannels(self.channels)
-        wave_file.setsampwidth(self.pa.get_sample_size(self.format))
-        wave_file.setframerate(self.sampling_rate)
+        wave_file.setnchannels(self.pa_config["channels"])
+        wave_file.setsampwidth(
+            self.pa.get_sample_size(self.pa_config["format"]))
+        wave_file.setframerate(self.pa_config["rate"])
         wave_file.writeframes(b''.join(self.frames))
         wave_file.close()
         self.__start_new_file()
@@ -319,7 +321,7 @@ class Audio(AbstractSensor):
                 self.trigger_events_since_last_status += 1
                 self.audio_recording = True
                 self.trigger_system.start_sequence_audio()
-            if self.quiet_count > self.silence_blocks and self.audio_recording:
+            if self.quiet_count > self.silence_duration_blocks and self.audio_recording:
                 if time.time() > self.current_trigger_time + self.inter_recording_pause_s:
                     self.pings = 0
                     self.audio_recording = False
@@ -370,7 +372,7 @@ class Audio(AbstractSensor):
         bin_peak_index = dbfs_spectrum.argmax()
         peak_db = dbfs_spectrum[bin_peak_index]
         peak_frequency_hz = bin_peak_index * \
-            self.sampling_rate / self.input_frames_per_block
+            self.pa_config["rate"] / self.input_frames_per_block
         logger.debug(f"Peak freq hz: {peak_frequency_hz} dBFS: {peak_db}")
         return peak_db
 
@@ -383,48 +385,69 @@ class Audio(AbstractSensor):
 
 class VHF(AbstractSensor):
     def __init__(self,
-                 db_user,
-                 db_password,
-                 db_database,
-                 vhf_frequencies,
-                 frequency_range_for_vhf_frequency,
-                 vhf_middle_frequency,
-                 vhf_inactive_threshold,
-                 time_between_vhf_pings_in_sec,
-                 vhf_threshold,
-                 vhf_duration,
-                 observation_time_for_ping_in_sec,
-                 trigger_system):
-        self.db_user = db_user
-        self.db_password = db_password
-        self.db_database = db_database
-        self.vhf_frequencies = vhf_frequencies
-        self.frequency_range_for_vhf_frequency = frequency_range_for_vhf_frequency
-        self.vhf_middle_frequency = vhf_middle_frequency
-        self.time_between_vhf_pings_in_sec = time_between_vhf_pings_in_sec
-        self.vhf_threshold = vhf_threshold
+                 trigger_system,
+                 frequencies: [int],
+                 frequency_range: int,
+                 middle_frequency: int,
+                 inactive_threshold: int,
+                 threshold: float,
+                 duration: float,
+                 time_between_pings_in_sec: float,
+                 db_user: str = "pi",
+                 db_password: str = "natur",
+                 db_database: str = "rteu",
+                 **kwargs,
+                 ):
+
+        # instance variables
         self.trigger_system = trigger_system
-        self.vhf_duration = vhf_duration
-        self.observation_time_for_ping_in_sec = observation_time_for_ping_in_sec
-        self.currently_active_vhf_frequencies = copy.deepcopy(
-            self.vhf_frequencies)
-        self.vhf_inactive_threshold = vhf_inactive_threshold
-        self.stopped = False
+
+        # user-configuration values
+        self.frequencies = [int(f) for f in frequencies]
+        self.frequency_range = int(frequency_range)
+        self.middle_frequency = int(middle_frequency)
+        self.inactive_threshold = int(inactive_threshold)
+        # self.time_between_vhf_pings_in_sec = time_between_pings_in_sec
+        self.threshold = float(threshold)
+        self.duration = float(duration)
+
+        # database connection
+        self.db_user = str(db_user)
+        self.db_password = str(db_password)
+        self.db_database = str(db_database)
+
+        # derived values
+        self.observation_time_for_ping_in_sec = float(
+            time_between_pings_in_sec) * 5 + 0.1
+
+        # internal values
+        self.active_frequencies = copy.deepcopy(self.frequencies)
+        self.running = False
+        self.threads = []
         self.vhf_recording = False
         self.trigger_events_since_last_status = 0
         self.present_and_active_bats = []
 
     def stop(self):
-        self.stopped = True
+        self.running = False
+        for t in self.threads:
+            logger.debug(f"waiting for VHF thread {t._target}")
+            t.join()
+            self.threads.remove(t)
+        logger.debug("VHF threads finished")
 
     def start(self):
-        logging.info("Start VHF sensor")
-        check_signal_for_active_bats = threading.Thread(
-            target=self.__check_vhf_signal_for_active_bats, args=())
-        check_signal_for_active_bats.start()
-        check_frequencies_for_inactivity = threading.Thread(
-            target=self.__check_vhf_frequencies_for_inactivity, args=())
-        check_frequencies_for_inactivity.start()
+        logging.info("Starting VHF sensor")
+        self.running = True
+
+        bat_scan_t = threading.Thread(target=self.__scan_for_active_bats)
+        bat_scan_t.start()
+        self.threads.append(bat_scan_t)
+
+        frequency_scan_t = threading.Thread(
+            target=self.__scan_frequency_inactivity)
+        frequency_scan_t.start()
+        self.threads.append(frequency_scan_t)
 
     def get_status(self):
         """
@@ -432,16 +455,16 @@ class VHF(AbstractSensor):
         :return:
         """
         present_and_inactive_bats = [
-            x for x in self.vhf_frequencies if x not in self.currently_active_vhf_frequencies]
-        absent_bats = [x for x in self.vhf_frequencies if
+            x for x in self.frequencies if x not in self.active_frequencies]
+        absent_bats = [x for x in self.frequencies if
                        x not in (present_and_inactive_bats or self.present_and_active_bats)]
-        return_values = {"running": not self.stopped,
+        return_values = {"running": self.running,
                          "recording": self.vhf_recording,
                          "trigger events": self.trigger_events_since_last_status,
                          "bats present and inactive": present_and_inactive_bats,
                          "bats present and active": self.present_and_active_bats,
                          "bats absent": absent_bats,
-                         "all observed frequencies": self.vhf_frequencies}
+                         "all observed frequencies": self.frequencies}
         self.trigger_events_since_last_status = 0
         return return_values
 
@@ -474,10 +497,10 @@ class VHF(AbstractSensor):
         :param frequency: frequency to check
         :return: bool
         """
-        for wanted_frequency in self.currently_active_vhf_frequencies:
-            if wanted_frequency - self.frequency_range_for_vhf_frequency < \
-                    (frequency + self.vhf_middle_frequency) / 1000 < \
-                    wanted_frequency + self.frequency_range_for_vhf_frequency:
+        for wanted_frequency in self.active_frequencies:
+            if wanted_frequency - self.frequency_range < \
+                    (frequency + self.middle_frequency) / 1000 < \
+                    wanted_frequency + self.frequency_range:
                 return True
         return False
 
@@ -487,25 +510,25 @@ class VHF(AbstractSensor):
         :param frequency: frequency to check
         :return: bool
         """
-        for wanted_frequency in self.vhf_frequencies:
-            if wanted_frequency - self.frequency_range_for_vhf_frequency < \
-                    (frequency + self.vhf_middle_frequency) / 1000 \
-                    < wanted_frequency + self.frequency_range_for_vhf_frequency:
+        for wanted_frequency in self.frequencies:
+            if wanted_frequency - self.frequency_range < \
+                    (frequency + self.middle_frequency) / 1000 \
+                    < wanted_frequency + self.frequency_range:
                 return True
         return False
 
     def __get_matching_bat_frequency(self, frequency: int):
         """
         :param frequency: given frequency of signal
-        :return: the matching frequency out of self.config.vhf_frequencies
+        :return: the matching frequency out of self.config.frequencies
         """
-        for wanted_frequency in self.vhf_frequencies:
-            if wanted_frequency - self.frequency_range_for_vhf_frequency < \
-                    (frequency + self.vhf_middle_frequency) / 1000 < \
-                    wanted_frequency + self.frequency_range_for_vhf_frequency:
+        for wanted_frequency in self.frequencies:
+            if wanted_frequency - self.frequency_range < \
+                    (frequency + self.middle_frequency) / 1000 < \
+                    wanted_frequency + self.frequency_range:
                 return wanted_frequency
 
-    def __check_vhf_signal_for_active_bats(self):
+    def __scan_for_active_bats(self):
         """
         an always running thread for the continuous check of all frequencies for activity
         if activity is detected the thread starts the recording
@@ -514,12 +537,12 @@ class VHF(AbstractSensor):
         while True:
             try:
                 current_round_check = False
-                if self.stopped:
+                if not self.running:
                     break
                 now = datetime.datetime.utcnow()
                 start = time.time()
-                query_results = self.__query_for_frequency_and_signal_strength(self.vhf_threshold,
-                                                                               self.vhf_duration,
+                query_results = self.__query_for_frequency_and_signal_strength(self.threshold,
+                                                                               self.duration,
                                                                                now - datetime.timedelta(seconds=self.observation_time_for_ping_in_sec))
                 logger.debug(
                     f"query check for active bats takes {time.time() - start}s")
@@ -528,7 +551,7 @@ class VHF(AbstractSensor):
                 for result in query_results:
                     frequency, signal_strength = result
                     real_frequency = (
-                        frequency + self.vhf_middle_frequency) / 1000.0
+                        frequency + self.middle_frequency) / 1000.0
                     logger.debug(
                         f"This frequency is detected: {real_frequency} with signal strength: {signal_strength}")
                     if self.__is_frequency_currently_active(frequency):
@@ -557,19 +580,19 @@ class VHF(AbstractSensor):
             except Exception as e:
                 logger.info(f"Error in check_vhf_signal_for_active_bats: {e}")
 
-    def __check_vhf_frequencies_for_inactivity(self):
+    def __scan_frequency_inactivity(self):
         """
         an always running thread for continuous adding
         and removing frequencies from the currently active frequencies list
         """
         while True:
             try:
-                if self.stopped:
+                if not self.running:
                     break
                 now = datetime.datetime.utcnow()
                 start = time.time()
-                query_results = self.__query_for_frequency_and_signal_strength(self.vhf_threshold,
-                                                                               self.vhf_duration,
+                query_results = self.__query_for_frequency_and_signal_strength(self.threshold,
+                                                                               self.duration,
                                                                                now - datetime.timedelta(seconds=60))
                 logger.debug(
                     f"query check for inactivity takes {time.time() - start}s")
@@ -582,21 +605,21 @@ class VHF(AbstractSensor):
 
                 for frequency in signals.keys():
                     if len(signals[frequency]) > 10 \
-                            and np.std(signals[frequency]) < self.vhf_inactive_threshold  \
-                            and frequency in self.currently_active_vhf_frequencies:
+                            and np.std(signals[frequency]) < self.inactive_threshold  \
+                            and frequency in self.active_frequencies:
                         logger.info(f"remove frequency: {frequency}")
-                        self.currently_active_vhf_frequencies.remove(frequency)
-                    elif np.std(signals[frequency]) > self.vhf_inactive_threshold \
-                            and frequency not in self.currently_active_vhf_frequencies:
-                        if frequency not in self.currently_active_vhf_frequencies:
+                        self.active_frequencies.remove(frequency)
+                    elif np.std(signals[frequency]) > self.inactive_threshold \
+                            and frequency not in self.active_frequencies:
+                        if frequency not in self.active_frequencies:
                             logger.info(f"add frequency: {frequency}")
-                            self.currently_active_vhf_frequencies.append(
+                            self.active_frequencies.append(
                                 frequency)
 
-                for frequency in self.vhf_frequencies:
-                    if frequency not in signals.keys() and frequency not in self.currently_active_vhf_frequencies:
+                for frequency in self.frequencies:
+                    if frequency not in signals.keys() and frequency not in self.active_frequencies:
                         logger.info(f"add frequency: {frequency}")
-                        self.currently_active_vhf_frequencies.append(frequency)
+                        self.active_frequencies.append(frequency)
                 time.sleep(10)
             except Exception as e:
                 logger.warning(

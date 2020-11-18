@@ -29,74 +29,61 @@ class BatRack:
                  **kwargs):
         signal.signal(signal.SIGINT, self.signal_handler)
 
+        # legacy database connection
         self.db_database = "rteu"
         self.db_user = "pi"
         self.db_password = "natur"
 
+        # configure logging
         logging.basicConfig(level=logging_level)
         logging.debug(f"logging level set to {logging_level}")
 
+        # check data path
         self.data_path = data_path
         os.makedirs(self.data_path, exist_ok=True)
         logging.debug(f"data path: {self.data_path}")
 
-        # self.use_camera: bool = self.config.get_bool("use_camera")
-        # self.use_microphone: bool = self.config.get_bool("use_microphone")
-        # self.use_audio_trigger: bool = self.config.get_bool(
-        #     "use_audio_trigger")
-        # self.use_vhf_trigger: bool = self.config.get_bool("use_vhf_trigger")
-        # self.run_continuous: bool = self.config.get_bool("run_continuous")
-
+        # create instance variables
         self.duty_cycle_s = int(duty_cycle_s)
-
-        # self.camera = None
-        # self.audio = None
-        # self.vhf = None
+        self.sensors = []
 
         self.trigger_system = TriggerSystem()
 
-        self.sensors = []
-
+        # setup camera
         if use_camera:
             self.camera = CameraLightController(**config["camera"])
-            self.sensors.append(self.camera)
             self.trigger_system.set_camera(self.camera)
+            self.sensors.append(self.camera)
 
+        # setup microphone
         if use_microphone:
             self.audio = Audio(
                 self.data_path,
                 self.trigger_system,
                 **config["audio"],
             )
-            self.sensors.append(self.audio)
             self.trigger_system.set_audio(self.audio)
+            self.sensors.append(self.audio)
 
+        # start recording straight, if always_on mode is selected
         if always_on:
             if self.camera:
                 self.camera.start()
             if self.audio:
                 self.audio.start(use_trigger=False)
 
-        else:
-            if self.use_vhf_trigger:
-                self.vhf = VHF(self.db_user,
-                               self.db_password,
-                               self.db_database,
-                               self.config.get_list("vhf_frequencies"),
-                               self.config.get_int("vhf_frequency_range"),
-                               self.config.get_int("vhf_middle_frequency"),
-                               self.config.get_int("vhf_inactive_threshold"),
-                               self.config.get_float(
-                                   "vhf_time_between_pings_in_sec"),
-                               self.config.get_int("vhf_threshold"),
-                               self.config.get_float("vhf_duration"),
-                               self.config.get_float(
-                                   "vhf_time_between_pings_in_sec") * 5 + 0.1,
-                               self.trigger_system)
-                self.vhf.start()
-                self.sensors.append(self.vhf)
-            if self.use_audio_trigger:
-                self.audio.start(use_trigger=True)
+            self.main_loop()
+
+            return
+
+        # regular trigger-based mode
+        if use_vhf_trigger:
+            self.vhf = VHF(self.trigger_system, **config["vhf"])
+            self.sensors.append(self.vhf)
+            self.vhf.start()
+
+        if use_audio_trigger:
+            self.audio.start(use_trigger=True)
 
         self.main_loop()
 
@@ -132,9 +119,9 @@ class BatRack:
         while True:
             for sensor in self.sensors:
                 status = sensor.get_status()
-                for item_name in status.keys():
-                    logger.info("sensor: {} {}: {}".format(
-                        str(type(sensor)), item_name, status[item_name]))
+                for s_name, s_value in status.items():
+                    logger.info(
+                        f"sensor: {sensor.__class__.__name__} - {s_name}: {s_value}")
             time.sleep(self.duty_cycle_s)
 
 
