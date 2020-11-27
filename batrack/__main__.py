@@ -4,6 +4,7 @@ import threading
 import sys
 import logging
 import configparser
+import argparse
 import os
 import socket
 import copy
@@ -148,15 +149,17 @@ class BatRack(threading.Thread):
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Evaluate sensors for active bats and trigger recordings.")
+    parser.add_argument("configfile",
+                        nargs='?',
+                        default="etc/BatRack.conf")
 
-    if len(sys.argv) > 1:
-        config_path = BatRack(sys.argv[1])
-    else:
-        config_path = "etc/BatRack.conf"
+    args = parser.parse_args()
 
     # read config file
     config = configparser.ConfigParser()
-    config.read(config_path)
+    config.read(args.configfile)
 
     # configure logging
     logging_level = config["BatRack"].get("logging_level", "INFO")
@@ -214,11 +217,11 @@ if __name__ == "__main__":
 
         except KeyError as e:
             logger.error(
-                f"[{k}] is missing a {e} time, please check the configuration file ({config_path}).")
+                f"[{k}] is missing a {e} time, please check the configuration file ({args.configfile}).")
             sys.exit(1)
         except schedule.ScheduleValueError as e:
             logger.error(
-                f"[{k}] {e}, please check the configuration file ({config_path}).")
+                f"[{k}] {e}, please check the configuration file ({args.configfile}).")
             sys.exit(1)
 
     running = True
