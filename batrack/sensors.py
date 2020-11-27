@@ -6,7 +6,6 @@ import wave
 import copy
 import json
 import os
-from collections import defaultdict
 from typing import List, Tuple, Dict
 
 import numpy as np
@@ -19,7 +18,7 @@ from numpy_ringbuffer import RingBuffer
 logger = logging.getLogger(__name__)
 
 
-class AbstractSensor(threading.Thread):
+class AbstractAnalysisUnit(threading.Thread):
     def __init__(self,
                  use_trigger: bool,
                  trigger_callback: callable,
@@ -81,12 +80,13 @@ class AbstractSensor(threading.Thread):
     def get_status(self) -> dict:
         return {
             "running": self._running,
+            "alive": self.is_alive(),
             "recording": self._recording,
             "trigger": self._trigger,
         }
 
 
-class CameraLightController(AbstractSensor):
+class CameraAnalysisUnit(AbstractAnalysisUnit):
     def __init__(self,
                  light_pin: int,
                  **kwargs):
@@ -147,14 +147,13 @@ class CameraLightController(AbstractSensor):
         self._recording = False
 
 
-class Audio(AbstractSensor):
+class AudioAnalysisUnit(AbstractAnalysisUnit):
     def __init__(self,
                  threshold_dbfs: int,
                  highpass_hz: int,
                  wave_export_len_s: float,
                  quiet_threshold_s: float,
                  noise_threshold_s: float,
-                 inter_recording_pause_s: float,
                  sampling_rate: int = 250000,
                  input_block_duration: float = 0.05,
                  **kwargs,
@@ -176,8 +175,6 @@ class Audio(AbstractSensor):
         # user-configuration values
         self.threshold_dbfs = int(threshold_dbfs)
         self.highpass_hz = int(highpass_hz)
-        # TODO: this is not used currently
-        self.inter_recording_pause_s = float(inter_recording_pause_s)
 
         self.sampling_rate = int(sampling_rate)
         self.input_block_duration = float(input_block_duration)
@@ -199,13 +196,6 @@ class Audio(AbstractSensor):
         self.__wave = None
 
     def run(self):
-        """
-        observes the audio stream continuous if no trigger is used or process every frame for an trigger and
-        store frames only in case of a trigger.
-        Additionally it checks if the current audio dump is longer than the expected chunk and has to be splitted
-        : param use_trigger: decides if the recording is continuous or triggered by the audio itself
-        : return:
-        """
         self._running = True
 
         # open input stream
@@ -370,7 +360,7 @@ class Audio(AbstractSensor):
         return peak_db
 
 
-class VHF(AbstractSensor):
+class VHFAnalysisUnit(AbstractAnalysisUnit):
     def __init__(self,
                  freq_center_hz: int,
                  freq_bw_hz: int,
@@ -501,7 +491,7 @@ class VHF(AbstractSensor):
 
                 # discard signals below threshold
                 if sig_strength < self.sig_threshold_dbm:
-                    logger.info(
+                    logger.debug(
                         f"signal {frequency_mhz:.3f} MHz, {sig_strength} dBm: too weak, discarding")
                     continue
 
@@ -513,19 +503,19 @@ class VHF(AbstractSensor):
                 # check if count threshold is met
                 count = len(sigs)
                 if count < self.freq_active_count:
-                    logger.info(
+                    logger.debug(
                         f"signal {frequency_mhz:.3f} MHz, {sig_strength} dBm: signals count low ({count}), discarding")
                     continue
 
                 # check if freq can be considered active
                 var = np.std([sig[1] for sig in sigs])
                 if var < self.freq_active_var:
-                    logger.info(
+                    logger.debug(
                         f"signal {frequency_mhz:.3f} MHz, {sig_strength} dBm: frequency variance low ({var}), discarding")
                     continue
 
                 # set untrigger time if all criterions are met
-                logger.info(
+                logger.debug(
                     f"signal: {frequency_mhz:.3f} MHz, {sig_strength} dBm: met all conditions (sig_count: {count}, sig_var: {var}:.3f)")
 
                 # TODO: set this from db_ts, instead of local time

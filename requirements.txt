@@ -4,5 +4,4 @@ numpy_ringbuffer
 mysql
 mysql-connector-python-rf
 python-dateutil
-pytimeparse
 schedule
