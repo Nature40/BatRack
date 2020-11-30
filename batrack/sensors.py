@@ -232,6 +232,7 @@ class AudioAnalysisUnit(AbstractAnalysisUnit):
         self._recording = True
 
     def stop_recording(self):
+        #TODO: isn't it enough to set self._reconging = False? In run() __wave_finalize() is also called.
         self.__wave_finalize()
         self._recording = False
 
@@ -304,18 +305,21 @@ class AudioAnalysisUnit(AbstractAnalysisUnit):
 
         # quiet block
         else:
-            # TODO: what does this? (somehow related to the click of the relay)
+            # ping detection
+            # a ping has to be a noisy sequence which is not longer than self.noise_blocks_max
             if 1 <= self.__noise_blocks <= self.noise_blocks_max:
                 logger.info(f"ping {self.__pings}")
                 self.__pings += 1
 
             # set trigger and callback
+            # it's the second ping because of the *click* of the relays which is the first ping every time
+            # in the moment we done have a relay anymore we can delete the lower boundary
             if 2 <= self.__pings and not self._trigger:
                 self._set_trigger(True)
 
             # stop audio if thresbold of quiet blocks is met
             if self.__quiet_blocks > self.quiet_blocks_max and self._trigger:
-                self._set_trigger(True)
+                self._set_trigger(False)
                 self.__pings = 0
 
             self.__noise_blocks = 0
