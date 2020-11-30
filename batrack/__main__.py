@@ -84,7 +84,7 @@ class BatRack(threading.Thread):
 
     @property
     def always_on(self) -> bool:
-        return not any([u.use_trigger for u in self._units])
+        return not any([unit.use_trigger for unit in self._units])
 
     def evaluate_triggers(self, callback_trigger):
         if self.always_on:
@@ -93,11 +93,11 @@ class BatRack(threading.Thread):
             trigger = False
 
         # if any of the used triggers fires, the system trigger is set
-        for u in self._units:
+        for unit in self._units:
             logger.debug(
-                f"trigger evaluation {u.__class__.__name__} use_trigger: {u.use_trigger}, trigger: {u.trigger}")
-            if u.use_trigger:
-                if u.trigger:
+                f"trigger evaluation {unit.__class__.__name__} use_trigger: {unit.use_trigger}, trigger: {unit.trigger}")
+            if unit.use_trigger:
+                if unit.trigger:
                     trigger = True
 
         logger.debug(f"trigger evaluation, current state: {trigger}")
@@ -107,10 +107,10 @@ class BatRack(threading.Thread):
             self._trigger = trigger
             if trigger:
                 logger.info(f"System triggered, starting recordings")
-                [u.start_recording() for u in self._units]
+                [unit.start_recording() for unit in self._units]
             else:
                 logger.info(f"System un-triggered, stopping recordings")
-                [u.stop_recording() for u in self._units]
+                [unit.stop_recording() for unit in self._units]
 
         return trigger
 
@@ -118,17 +118,17 @@ class BatRack(threading.Thread):
         self._running = True
 
         # start units
-        [u.start() for u in self._units]
+        [unit.start() for unit in self._units]
 
         # do an initial trigger evaluation, also starts recordings when no trigger is used at all
         self.evaluate_triggers(None)
 
         # print status reports
         while self._running:
-            for u in self._units:
+            for unit in self._units:
                 status_str = ", ".join(
-                    [f"{k}: {v}" for k, v in u.get_status().items()])
-                logger.info(f"{u.__class__.__name__:15s}: {status_str}")
+                    [f"{k}: {v}" for k, v in unit.get_status().items()])
+                logger.info(f"{unit.__class__.__name__:15s}: {status_str}")
 
             time.sleep(self.duty_cycle_s)
 
@@ -142,7 +142,7 @@ class BatRack(threading.Thread):
         logger.info(f"Stopping [{self.name}] and respective sensor instances")
         self._running = False
 
-        [u.stop() for u in self._units]
+        [unit.stop() for unit in self._units]
         logger.info(f"Finished cleaning [{self.name}] sensors")
 
         self.join()
