@@ -185,6 +185,7 @@ if __name__ == "__main__":
         if instance:
             instance.stop()
             instance = None
+            lock.release()
         logger.info(f"[{k}] stopped")
 
     config_has_runs = 0
