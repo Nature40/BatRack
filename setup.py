@@ -11,11 +11,11 @@ with open('requirements.txt') as f:
 
 setup(
     name='batrack',
-    version='0.1.0',
+    version='0.2.0',
     description='Sense and record bats based on visuals, audio and VHF signals',
     long_description=readme,
-    author='Patrick Lampe',
-    author_email='lampep@mathematik.uni-marburg.de',
+    author='Patrick Lampe, Jonas Höchst',
+    author_email='lampep@mathematik.uni-marburg.de, hoechst@mathematik.uni-marburg.de',
     url='https://github.com/Nature40/BatRack/',
     install_requires=requirements,
     # license=license,
