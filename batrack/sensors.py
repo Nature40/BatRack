@@ -66,16 +66,14 @@ class AbstractAnalysisUnit(threading.Thread):
 
         The sensor instance requires to run.
         """
-        logger.warning(
-            f"{self.__class__.__name__}.start_recording() is not implemented.")
+        logger.warning(f"{self.__class__.__name__}.start_recording() is not implemented.")
 
     def stop_recording(self):
         """Stop recording of the sensor.
 
         The sensor instance requires to run and a recording needs to be running.
         """
-        logger.warning(
-            f"{self.__class__.__name__}.stop_recording() is not implemented.")
+        logger.warning(f"{self.__class__.__name__}.stop_recording() is not implemented.")
 
     def get_status(self) -> dict:
         return {
@@ -178,8 +176,7 @@ class AudioAnalysisUnit(AbstractAnalysisUnit):
 
         self.sampling_rate = int(sampling_rate)
         self.input_block_duration = float(input_block_duration)
-        self.input_frames_per_block = \
-            int(self.sampling_rate * input_block_duration)
+        self.input_frames_per_block = int(self.sampling_rate * input_block_duration)
 
         self.wave_export_len = float(wave_export_len_s) * self.sampling_rate
 
@@ -448,20 +445,27 @@ class VHFAnalysisUnit(AbstractAnalysisUnit):
                                     autocommit=True,
                                     )
 
+    def start_recording(self):
+        # the vhf sensor is recording continuously
+        pass
+
+    def stop_recording(self):
+        # the vhf sensor is recording continuously
+        pass
+
     def run(self):
         self._running = True
 
         # setup db cursor and get initial signal retrieval pointer
         cursor = self.__db.cursor()
         cursor.execute("SET time_zone='+00:00';")
-        cursor.execute(
-            "SELECT id, timestamp FROM signals ORDER BY id DESC LIMIT 1;")
+        cursor.execute("SELECT id, timestamp FROM signals ORDER BY id DESC LIMIT 1;")
         db_id, db_ts = cursor.fetchone()
-        logger.info(
-            f"Reading signals of database, starting with id:{db_id}, datetime: {db_ts}")
+        logger.info(f"Reading signals of database, starting with id:{db_id}, datetime: {db_ts}")
 
         # helper method to retrieve the signal list
 
+        #TODO: fix wrong type hints for return type
         def get_freqs_list(freq_rel: int) -> Tuple[float, list]:
             for mhz, (lower, upper, sigs) in self._freqs_bins.items():
                 if freq_rel > lower and freq_rel < upper:
@@ -484,10 +488,8 @@ class VHFAnalysisUnit(AbstractAnalysisUnit):
                 frequency_mhz, sigs = get_freqs_list(freq_rel)
 
                 if not frequency_mhz:
-                    sig_freq_mhz = (
-                        freq_rel + self.freq_center_hz) / 1000.0 / 1000.0
-                    logger.debug(
-                        f"signal {sig_freq_mhz:.3f} MHz: not in sig_freqs_mhz list, discarding")
+                    sig_freq_mhz = (freq_rel + self.freq_center_hz) / 1000.0 / 1000.0
+                    logger.debug(f"signal {sig_freq_mhz:.3f} MHz: not in sig_freqs_mhz list, discarding")
                     continue
 
                 # append current signal to the signal list of this freq
@@ -495,32 +497,27 @@ class VHFAnalysisUnit(AbstractAnalysisUnit):
 
                 # discard signals below threshold
                 if sig_strength < self.sig_threshold_dbm:
-                    logger.debug(
-                        f"signal {frequency_mhz:.3f} MHz, {sig_strength} dBm: too weak, discarding")
+                    logger.debug(f"signal {frequency_mhz:.3f} MHz, {sig_strength} dBm: too weak, discarding")
                     continue
 
                 # cleanup current signal list (discard older signals)
-                sig_start = db_ts - \
-                    datetime.timedelta(seconds=self.freq_active_window_s)
+                sig_start = db_ts - datetime.timedelta(seconds=self.freq_active_window_s)
                 sigs[:] = [sig for sig in sigs if sig[0] > sig_start]
 
                 # check if count threshold is met
                 count = len(sigs)
                 if count < self.freq_active_count:
-                    logger.debug(
-                        f"signal {frequency_mhz:.3f} MHz, {sig_strength} dBm: signals count low ({count}), discarding")
+                    logger.debug(f"signal {frequency_mhz:.3f} MHz, {sig_strength} dBm: signals count low ({count}), discarding")
                     continue
 
                 # check if freq can be considered active
                 var = np.std([sig[1] for sig in sigs])
                 if var < self.freq_active_var:
-                    logger.debug(
-                        f"signal {frequency_mhz:.3f} MHz, {sig_strength} dBm: frequency variance low ({var}), discarding")
+                    logger.debug(f"signal {frequency_mhz:.3f} MHz, {sig_strength} dBm: frequency variance low ({var}), discarding")
                     continue
 
                 # set untrigger time if all criterions are met
-                logger.debug(
-                    f"signal: {frequency_mhz:.3f} MHz, {sig_strength} dBm: met all conditions (sig_count: {count}, sig_var: {var}:.3f)")
+                logger.debug(f"signal: {frequency_mhz:.3f} MHz, {sig_strength} dBm: met all conditions (sig_count: {count}, sig_var: {var}:.3f)")
 
                 # TODO: set this from db_ts, instead of local time
                 # this could lead to decreasing of untrigger_ts, which could be avoided by calling max(untrigger_ts_old, ..._new)
