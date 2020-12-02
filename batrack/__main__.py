@@ -27,12 +27,13 @@ class BatRack(threading.Thread):
                  name: str = "default",
                  data_path: str = "data",
                  duty_cycle_s: int = 10,
-                 use_camera: bool = True,
-                 use_microphone: bool = True,
                  use_vhf: bool = True,
+                 use_audio: bool = True,
+                 use_camera: bool = True,
                  use_trigger_vhf: bool = True,
                  use_trigger_audio: bool = True,
                  use_trigger_camera: bool = True,
+                 always_on: bool = False,
                  **kwargs):
         super().__init__()
         self.name = name
@@ -48,12 +49,22 @@ class BatRack(threading.Thread):
         self._units = []
 
         # convert boolean config variables
-        use_camera = strtobool(use_camera) if isinstance(
-            use_camera, str) else bool(use_camera)
-        use_microphone = strtobool(use_microphone) if isinstance(
-            use_microphone, str) else bool(use_microphone)
         use_vhf = strtobool(use_vhf) if isinstance(
             use_vhf, str) else bool(use_vhf)
+        use_audio = strtobool(use_audio) if isinstance(
+            use_audio, str) else bool(use_audio)
+        use_camera = strtobool(use_camera) if isinstance(
+            use_camera, str) else bool(use_camera)
+
+        use_trigger_vhf = strtobool(use_trigger_vhf) if isinstance(
+            use_trigger_vhf, str) else bool(use_trigger_vhf)
+        use_trigger_audio = strtobool(use_trigger_audio) if isinstance(
+            use_trigger_audio, str) else bool(use_trigger_audio)
+        use_trigger_camera = strtobool(use_trigger_camera) if isinstance(
+            use_trigger_camera, str) else bool(use_trigger_camera)
+
+        self.always_on = strtobool(always_on) if isinstance(
+            always_on, str) else bool(always_on)
 
         # setup vhf
         self.vhf = None
@@ -66,6 +77,17 @@ class BatRack(threading.Thread):
             )
             self._units.append(self.vhf)
 
+        # setup audio
+        self.audio = None
+        if use_audio:
+            self.audio = AudioAnalysisUnit(
+                **config["AudioAnalysisUnit"],
+                use_trigger=use_trigger_audio,
+                trigger_callback=self.evaluate_triggers,
+                data_path=self.data_path,
+            )
+            self._units.append(self.audio)
+
         # setup camera
         self.camera = None
         if use_camera:
@@ -77,23 +99,8 @@ class BatRack(threading.Thread):
             )
             self._units.append(self.camera)
 
-        # setup audio
-        self.audio = None
-        if use_microphone:
-            self.audio = AudioAnalysisUnit(
-                **config["AudioAnalysisUnit"],
-                use_trigger=use_trigger_audio,
-                trigger_callback=self.evaluate_triggers,
-                data_path=self.data_path,
-            )
-            self._units.append(self.audio)
-
         self._running = False
         self._trigger = False
-
-    @property
-    def always_on(self) -> bool:
-        return not any([unit.use_trigger for unit in self._units])
 
     def evaluate_triggers(self, callback_trigger):
         if self.always_on:
@@ -136,8 +143,8 @@ class BatRack(threading.Thread):
         while self._running:
             for unit in self._units:
                 status_str = ", ".join(
-                    [f"{k}: {v}" for k, v in unit.get_status().items()])
-                logger.info(f"{unit.__class__.__name__:15s}: {status_str}")
+                    [f"{k}: {'1' if v else '0'}" for k, v in unit.get_status().items()])
+                logger.info(f"{unit.__class__.__name__:20s}: {status_str}")
 
             time.sleep(self.duty_cycle_s)
 
@@ -243,7 +250,6 @@ if __name__ == "__main__":
         running = False
 
         stop_and_remove("SIGINT")
-        sys.exit(0)
 
     signal.signal(signal.SIGINT, signal_handler)
 

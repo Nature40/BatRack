@@ -82,6 +82,7 @@ class AbstractAnalysisUnit(threading.Thread):
             "running": self._running,
             "alive": self.is_alive(),
             "recording": self._recording,
+            "use_trigger": self.use_trigger,
             "trigger": self._trigger,
         }
 
