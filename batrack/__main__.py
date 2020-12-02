@@ -252,6 +252,7 @@ if __name__ == "__main__":
         stop_and_remove("SIGINT")
 
     signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
 
     # start the run scheduling or run continuously
     if config_has_runs:
