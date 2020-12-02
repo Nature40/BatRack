@@ -6,7 +6,7 @@ import threading
 import time
 import wave
 from distutils.util import strtobool
-from typing import List, Tuple
+from typing import List, Tuple, Dict
 
 import gpiozero
 import mysql.connector as mariadb
@@ -26,14 +26,14 @@ class AbstractAnalysisUnit(threading.Thread):
     ):
         super().__init__()
 
-        self.use_trigger = strtobool(use_trigger) if isinstance(use_trigger, str) else bool(use_trigger)
-        self.data_path = data_path
+        self.use_trigger: bool = strtobool(use_trigger) if isinstance(use_trigger, str) else bool(use_trigger)
+        self.data_path: str = str(data_path)
 
-        self._trigger_callback = trigger_callback
+        self._trigger_callback: callable = trigger_callback
 
-        self._running = False
-        self._trigger = False
-        self._recording = False
+        self._running: bool = False
+        self._trigger: bool = False
+        self._recording: bool = False
 
         if len(kwargs) > 1:
             logger.debug(f"unused configuration parameters: {kwargs}")
@@ -44,7 +44,7 @@ class AbstractAnalysisUnit(threading.Thread):
         return self._recording
 
     @property
-    def trigger(self):
+    def trigger(self) -> bool:
         """Return trigger state based on this sensor."""
         return self._trigger
 
@@ -74,7 +74,7 @@ class AbstractAnalysisUnit(threading.Thread):
         """
         logger.warning(f"{self.__class__.__name__}.stop_recording() is not implemented.")
 
-    def get_status(self) -> dict:
+    def get_status(self) -> Dict:
         return {
             "running": self._running,
             "alive": self.is_alive(),
@@ -94,10 +94,7 @@ class CameraAnalysisUnit(AbstractAnalysisUnit):
         super().__init__(**kwargs)
 
         # initialize GPIO communication
-        self.light = gpiozero.LED(light_pin, active_high=False)
-
-        # initialize instance variables
-        self.triggered_events_since_last_status = 0
+        self.light: gpiozero.LED = gpiozero.LED(light_pin, active_high=False)
 
     def run(self):
         self._running = True
@@ -155,25 +152,25 @@ class AudioAnalysisUnit(AbstractAnalysisUnit):
         super().__init__(**kwargs)
 
         # user-configuration values
-        self.threshold_dbfs = int(threshold_dbfs)
-        self.highpass_hz = int(highpass_hz)
+        self.threshold_dbfs: int = int(threshold_dbfs)
+        self.highpass_hz: int = int(highpass_hz)
 
-        self.sampling_rate = int(sampling_rate)
-        self.input_block_duration = float(input_block_duration)
-        self.input_frames_per_block = int(self.sampling_rate * input_block_duration)
+        self.sampling_rate: int = int(sampling_rate)
+        self.input_block_duration: float = float(input_block_duration)
+        self.input_frames_per_block: int = int(self.sampling_rate * input_block_duration)
 
-        self.wave_export_len = float(wave_export_len_s) * self.sampling_rate
+        self.wave_export_len: float = float(wave_export_len_s) * self.sampling_rate
 
-        self.quiet_blocks_max = float(quiet_threshold_s) / input_block_duration
-        self.noise_blocks_max = float(noise_threshold_s) / input_block_duration
+        self.quiet_blocks_max: float = float(quiet_threshold_s) / input_block_duration
+        self.noise_blocks_max: float = float(noise_threshold_s) / input_block_duration
 
         # set pyaudio config
-        self.pa = pyaudio.PyAudio()
+        self.pa: pyaudio.PyAudio = pyaudio.PyAudio()
 
-        self.__pings = 0
+        self.__pings: int = 0
 
-        self.__noise_blocks = 0
-        self.__quiet_blocks = 0
+        self.__noise_blocks: int = 0
+        self.__quiet_blocks: int = 0
         self.__wave = None
 
     def run(self):
@@ -386,8 +383,8 @@ class VHFAnalysisUnit(AbstractAnalysisUnit):
         super().__init__(**kwargs)
 
         # base system values
-        self.freq_center_hz = int(freq_center_hz)
-        self.freq_bw_hz = int(freq_bw_hz)
+        self.freq_center_hz: int = int(freq_center_hz)
+        self.freq_bw_hz: int = int(freq_bw_hz)
 
         # signal-specific configuration and thresholds
         if isinstance(sig_freqs_mhz, list):
@@ -398,7 +395,7 @@ class VHFAnalysisUnit(AbstractAnalysisUnit):
             raise ValueError(f"invalid format for frequencies, {type(sig_freqs_mhz)}:'{sig_freqs_mhz}'")
 
         # freqs_bins to contain old signal values for variance calc
-        self._freqs_bins = {}
+        self._freqs_bins: Dict[float, Tuple[int, int, List[datetime.datetime, float]]] = {}
         for freq_mhz in sig_freqs_mhz:
             freq_rel = int(freq_mhz * 1000 * 1000) - self.freq_center_hz
             lower = freq_rel - (self.freq_bw_hz / 2)
@@ -449,9 +446,7 @@ class VHFAnalysisUnit(AbstractAnalysisUnit):
         logger.info(f"Reading signals of database, starting with id:{db_id}, datetime: {db_ts}")
 
         # helper method to retrieve the signal list
-
-        # TODO: fix wrong type hints for return type
-        def get_freqs_list(freq_rel: int) -> Tuple[float, list]:
+        def get_freqs_list(freq_rel: int) -> Tuple[float, List[Tuple[datetime.datetime, float]]]:
             for mhz, (lower, upper, sigs) in self._freqs_bins.items():
                 if freq_rel > lower and freq_rel < upper:
                     return (mhz, sigs)

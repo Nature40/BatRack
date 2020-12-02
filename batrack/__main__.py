@@ -10,10 +10,11 @@ import sys
 import threading
 import time
 from distutils.util import strtobool
+from typing import List
 
 import schedule
 
-from batrack.sensors import AudioAnalysisUnit, CameraAnalysisUnit, VHFAnalysisUnit
+from batrack.sensors import AudioAnalysisUnit, CameraAnalysisUnit, VHFAnalysisUnit, AbstractAnalysisUnit
 
 logger = logging.getLogger(__name__)
 
@@ -35,30 +36,30 @@ class BatRack(threading.Thread):
         **kwargs,
     ):
         super().__init__()
-        self.name = name
+        self.name: str = str(name)
 
         # add hostname and  data path
-        self.data_path = os.path.join(data_path, socket.gethostname(), self.__class__.__name__)
+        self.data_path: str = os.path.join(data_path, socket.gethostname(), self.__class__.__name__)
         os.makedirs(self.data_path, exist_ok=True)
         logging.debug(f"data path: {self.data_path}")
 
         # create instance variables
-        self.duty_cycle_s = int(duty_cycle_s)
-        self._units = []
+        self.duty_cycle_s: int = int(duty_cycle_s)
+        self._units: List[AbstractAnalysisUnit] = []
 
         # convert boolean config variables
-        use_vhf = strtobool(use_vhf) if isinstance(use_vhf, str) else bool(use_vhf)
-        use_audio = strtobool(use_audio) if isinstance(use_audio, str) else bool(use_audio)
-        use_camera = strtobool(use_camera) if isinstance(use_camera, str) else bool(use_camera)
+        use_vhf: bool = strtobool(use_vhf) if isinstance(use_vhf, str) else bool(use_vhf)
+        use_audio: bool = strtobool(use_audio) if isinstance(use_audio, str) else bool(use_audio)
+        use_camera: bool = strtobool(use_camera) if isinstance(use_camera, str) else bool(use_camera)
 
-        use_trigger_vhf = strtobool(use_trigger_vhf) if isinstance(use_trigger_vhf, str) else bool(use_trigger_vhf)
-        use_trigger_audio = strtobool(use_trigger_audio) if isinstance(use_trigger_audio, str) else bool(use_trigger_audio)
-        use_trigger_camera = strtobool(use_trigger_camera) if isinstance(use_trigger_camera, str) else bool(use_trigger_camera)
+        use_trigger_vhf: bool = strtobool(use_trigger_vhf) if isinstance(use_trigger_vhf, str) else bool(use_trigger_vhf)
+        use_trigger_audio: bool = strtobool(use_trigger_audio) if isinstance(use_trigger_audio, str) else bool(use_trigger_audio)
+        use_trigger_camera: bool = strtobool(use_trigger_camera) if isinstance(use_trigger_camera, str) else bool(use_trigger_camera)
 
-        self.always_on = strtobool(always_on) if isinstance(always_on, str) else bool(always_on)
+        self.always_on: bool = strtobool(always_on) if isinstance(always_on, str) else bool(always_on)
 
         # setup vhf
-        self.vhf = None
+        self.vhf: VHFAnalysisUnit = None
         if use_vhf:
             self.vhf = VHFAnalysisUnit(
                 **config["VHFAnalysisUnit"],
@@ -69,7 +70,7 @@ class BatRack(threading.Thread):
             self._units.append(self.vhf)
 
         # setup audio
-        self.audio = None
+        self.audio: AudioAnalysisUnit = None
         if use_audio:
             self.audio = AudioAnalysisUnit(
                 **config["AudioAnalysisUnit"],
@@ -80,7 +81,7 @@ class BatRack(threading.Thread):
             self._units.append(self.audio)
 
         # setup camera
-        self.camera = None
+        self.camera: CameraAnalysisUnit = None
         if use_camera:
             self.camera = CameraAnalysisUnit(
                 **config["CameraAnalysisUnit"],
@@ -90,10 +91,10 @@ class BatRack(threading.Thread):
             )
             self._units.append(self.camera)
 
-        self._running = False
-        self._trigger = False
+        self._running: bool = False
+        self._trigger: bool = False
 
-    def evaluate_triggers(self, callback_trigger):
+    def evaluate_triggers(self, callback_trigger: bool) -> bool:
         if self.always_on:
             trigger = True
         else:
