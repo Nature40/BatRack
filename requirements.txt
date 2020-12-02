@@ -1,0 +1,8 @@
+gpiozero
+mysql
+mysql-connector-python-rf
+numpy
+numpy_ringbuffer
+pyaudio
+python-dateutil
+schedule
