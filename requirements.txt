@@ -1,9 +1,8 @@
+gpiozero
 mysql
 mysql-connector-python-rf
 numpy
 numpy_ringbuffer
-picamera
 pyaudio
 python-dateutil
-RPi.GPIO
 schedule

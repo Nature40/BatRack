@@ -1,46 +1,44 @@
-import signal
-import time
-import threading
-import sys
-import logging
-import configparser
 import argparse
-import os
-import socket
+import configparser
 import copy
 import datetime
+import logging
+import os
+import signal
+import socket
+import sys
+import threading
+import time
 from distutils.util import strtobool
 
 import schedule
 
-from batrack.sensors import CameraAnalysisUnit
-from batrack.sensors import AudioAnalysisUnit
-from batrack.sensors import VHFAnalysisUnit
-
+from batrack.sensors import AudioAnalysisUnit, CameraAnalysisUnit, VHFAnalysisUnit
 
 logger = logging.getLogger(__name__)
 
 
 class BatRack(threading.Thread):
-    def __init__(self,
-                 config,
-                 name: str = "default",
-                 data_path: str = "data",
-                 duty_cycle_s: int = 10,
-                 use_vhf: bool = True,
-                 use_audio: bool = True,
-                 use_camera: bool = True,
-                 use_trigger_vhf: bool = True,
-                 use_trigger_audio: bool = True,
-                 use_trigger_camera: bool = True,
-                 always_on: bool = False,
-                 **kwargs):
+    def __init__(
+        self,
+        config,
+        name: str = "default",
+        data_path: str = "data",
+        duty_cycle_s: int = 10,
+        use_vhf: bool = True,
+        use_audio: bool = True,
+        use_camera: bool = True,
+        use_trigger_vhf: bool = True,
+        use_trigger_audio: bool = True,
+        use_trigger_camera: bool = True,
+        always_on: bool = False,
+        **kwargs,
+    ):
         super().__init__()
         self.name = name
 
         # add hostname and  data path
-        self.data_path = os.path.join(
-            data_path, socket.gethostname(), self.__class__.__name__)
+        self.data_path = os.path.join(data_path, socket.gethostname(), self.__class__.__name__)
         os.makedirs(self.data_path, exist_ok=True)
         logging.debug(f"data path: {self.data_path}")
 
@@ -49,22 +47,15 @@ class BatRack(threading.Thread):
         self._units = []
 
         # convert boolean config variables
-        use_vhf = strtobool(use_vhf) if isinstance(
-            use_vhf, str) else bool(use_vhf)
-        use_audio = strtobool(use_audio) if isinstance(
-            use_audio, str) else bool(use_audio)
-        use_camera = strtobool(use_camera) if isinstance(
-            use_camera, str) else bool(use_camera)
+        use_vhf = strtobool(use_vhf) if isinstance(use_vhf, str) else bool(use_vhf)
+        use_audio = strtobool(use_audio) if isinstance(use_audio, str) else bool(use_audio)
+        use_camera = strtobool(use_camera) if isinstance(use_camera, str) else bool(use_camera)
 
-        use_trigger_vhf = strtobool(use_trigger_vhf) if isinstance(
-            use_trigger_vhf, str) else bool(use_trigger_vhf)
-        use_trigger_audio = strtobool(use_trigger_audio) if isinstance(
-            use_trigger_audio, str) else bool(use_trigger_audio)
-        use_trigger_camera = strtobool(use_trigger_camera) if isinstance(
-            use_trigger_camera, str) else bool(use_trigger_camera)
+        use_trigger_vhf = strtobool(use_trigger_vhf) if isinstance(use_trigger_vhf, str) else bool(use_trigger_vhf)
+        use_trigger_audio = strtobool(use_trigger_audio) if isinstance(use_trigger_audio, str) else bool(use_trigger_audio)
+        use_trigger_camera = strtobool(use_trigger_camera) if isinstance(use_trigger_camera, str) else bool(use_trigger_camera)
 
-        self.always_on = strtobool(always_on) if isinstance(
-            always_on, str) else bool(always_on)
+        self.always_on = strtobool(always_on) if isinstance(always_on, str) else bool(always_on)
 
         # setup vhf
         self.vhf = None
@@ -110,8 +101,7 @@ class BatRack(threading.Thread):
 
         # if any of the used triggers fires, the system trigger is set
         for unit in self._units:
-            logger.debug(
-                f"trigger evaluation {unit.__class__.__name__} use_trigger: {unit.use_trigger}, trigger: {unit.trigger}")
+            logger.debug(f"trigger evaluation {unit.__class__.__name__} use_trigger: {unit.use_trigger}, trigger: {unit.trigger}")
             if unit.use_trigger:
                 if unit.trigger:
                     trigger = True
@@ -122,10 +112,10 @@ class BatRack(threading.Thread):
         if trigger != self._trigger:
             self._trigger = trigger
             if trigger:
-                logger.info(f"System triggered, starting recordings")
+                logger.info("System triggered, starting recordings")
                 [unit.start_recording() for unit in self._units]
             else:
-                logger.info(f"System un-triggered, stopping recordings")
+                logger.info("System un-triggered, stopping recordings")
                 [unit.stop_recording() for unit in self._units]
 
         return trigger
@@ -142,8 +132,7 @@ class BatRack(threading.Thread):
         # print status reports
         while self._running:
             for unit in self._units:
-                status_str = ", ".join(
-                    [f"{k}: {'1' if v else '0'}" for k, v in unit.get_status().items()])
+                status_str = ", ".join([f"{k}: {'1' if v else '0'}" for k, v in unit.get_status().items()])
                 logger.info(f"{unit.__class__.__name__:20s}: {status_str}")
 
             time.sleep(self.duty_cycle_s)
@@ -165,11 +154,12 @@ class BatRack(threading.Thread):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Evaluate sensors for active bats and trigger recordings.")
-    parser.add_argument("configfile",
-                        nargs='?',
-                        default="etc/BatRack.conf")
+    parser = argparse.ArgumentParser(description="Evaluate sensors for active bats and trigger recordings.")
+    parser.add_argument(
+        "configfile",
+        nargs="?",
+        default="etc/BatRack.conf",
+    )
 
     args = parser.parse_args()
 
@@ -219,8 +209,7 @@ if __name__ == "__main__":
             start_s = schedule.every().day.at(run_config["start"])
             stop_s = schedule.every().day.at(run_config["stop"])
 
-            logger.info(
-                f"[{k}] running from {run_config['start']} to {run_config['stop']}")
+            logger.info(f"[{k}] running from {run_config['start']} to {run_config['stop']}")
 
             start_s.do(create_and_run, config, k, run_config)
             stop_s.do(stop_and_remove, k)
@@ -233,12 +222,10 @@ if __name__ == "__main__":
             config_has_runs += 1
 
         except KeyError as e:
-            logger.error(
-                f"[{k}] is missing a {e} time, please check the configuration file ({args.configfile}).")
+            logger.error(f"[{k}] is missing a {e} time, please check the configuration file ({args.configfile}).")
             sys.exit(1)
         except schedule.ScheduleValueError as e:
-            logger.error(
-                f"[{k}] {e}, please check the configuration file ({args.configfile}).")
+            logger.error(f"[{k}] {e}, please check the configuration file ({args.configfile}).")
             sys.exit(1)
 
     running = True
@@ -256,7 +243,7 @@ if __name__ == "__main__":
 
     # start the run scheduling or run continuously
     if config_has_runs:
-        logger.info(f"starting run scheduling")
+        logger.info("starting run scheduling")
         while running:
             schedule.run_pending()
             time.sleep(1)
