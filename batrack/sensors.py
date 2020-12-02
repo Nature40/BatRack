@@ -104,7 +104,7 @@ class CameraAnalysisUnit(AbstractAnalysisUnit):
         GPIO.setmode(GPIO.BCM)
         GPIO.setwarnings(False)
         GPIO.setup(self.light_pin, GPIO.OUT)
-        GPIO.output(self.light_pin, GPIO.LOW)
+        GPIO.output(self.light_pin, GPIO.HIGH)
 
         # initialize instance variables
         self.triggered_events_since_last_status = 0
@@ -118,17 +118,9 @@ class CameraAnalysisUnit(AbstractAnalysisUnit):
             logger.debug("sensor running")
             time.sleep(1)
 
-    def stop(self):
-        self._running = False
-
-        GPIO.output(self.light_pin, GPIO.LOW)
-        GPIO.cleanup()
-
-        self.join()
-
     def start_recording(self):
         logger.info("Powering light on")
-        GPIO.output(self.light_pin, GPIO.HIGH)
+        GPIO.output(self.light_pin, GPIO.LOW)
 
         logger.info("Starting camera recording")
         with open("/var/www/html/FIFO1", "w") as f:
@@ -142,7 +134,7 @@ class CameraAnalysisUnit(AbstractAnalysisUnit):
             f.write("0")
 
         logger.info("Powering light off")
-        GPIO.output(self.light_pin, GPIO.LOW)
+        GPIO.output(self.light_pin, GPIO.HIGH)
 
         self._recording = False
 
