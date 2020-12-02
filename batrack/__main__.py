@@ -134,6 +134,9 @@ class BatRack(threading.Thread):
             for unit in self._units:
                 status_str = ", ".join([f"{k}: {'1' if v else '0'}" for k, v in unit.get_status().items()])
                 logger.info(f"{unit.__class__.__name__:20s}: {status_str}")
+                if unit._running and not unit.is_alive():
+                    logger.warning(f"{unit.__class__.__name__} is not active, but should run; self-terminating")
+                    os.kill(os.getpid(), signal.SIGINT)
 
             time.sleep(self.duty_cycle_s)
 
