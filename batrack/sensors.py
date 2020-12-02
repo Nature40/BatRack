@@ -6,6 +6,7 @@ import wave
 import copy
 import json
 import os
+from distutils.util import strtobool
 from typing import List, Tuple, Dict
 
 import numpy as np
@@ -27,7 +28,8 @@ class AbstractAnalysisUnit(threading.Thread):
                  ):
         super().__init__()
 
-        self.use_trigger = bool(use_trigger)
+        self.use_trigger = strtobool(use_trigger) if isinstance(
+            use_trigger, str) else bool(use_trigger)
         self.data_path = data_path
 
         self._trigger_callback = trigger_callback

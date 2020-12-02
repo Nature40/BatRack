@@ -9,6 +9,7 @@ import os
 import socket
 import copy
 import datetime
+from distutils.util import strtobool
 
 import schedule
 
@@ -45,6 +46,14 @@ class BatRack(threading.Thread):
         # create instance variables
         self.duty_cycle_s = int(duty_cycle_s)
         self._units = []
+
+        # convert boolean config variables
+        use_camera = strtobool(use_camera) if isinstance(
+            use_camera, str) else bool(use_camera)
+        use_microphone = strtobool(use_microphone) if isinstance(
+            use_microphone, str) else bool(use_microphone)
+        use_vhf = strtobool(use_vhf) if isinstance(
+            use_vhf, str) else bool(use_vhf)
 
         # setup vhf
         self.vhf = None
