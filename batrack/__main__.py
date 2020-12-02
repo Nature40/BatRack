@@ -1,6 +1,7 @@
 import argparse
 import configparser
 import copy
+import csv
 import datetime
 import logging
 import os
@@ -42,6 +43,9 @@ class BatRack(threading.Thread):
         self.data_path: str = os.path.join(data_path, socket.gethostname(), self.__class__.__name__)
         os.makedirs(self.data_path, exist_ok=True)
         logging.debug(f"data path: {self.data_path}")
+        start_time_str = datetime.datetime.now().strftime("%Y-%m-%dT%H_%M_%S")
+        self.csvfile = open(os.path.join(self.data_path, f"{start_time_str}_{self.name}.csv"), "w")
+        self.csv = csv.writer(self.csvfile)
 
         # create instance variables
         self.duty_cycle_s: int = int(duty_cycle_s)
@@ -94,7 +98,11 @@ class BatRack(threading.Thread):
         self._running: bool = False
         self._trigger: bool = False
 
-    def evaluate_triggers(self, callback_trigger: bool) -> bool:
+    def evaluate_triggers(self, callback_trigger: bool, message: str) -> bool:
+        now_time_str = datetime.datetime.now().strftime("%Y-%m-%dT%H_%M_%S")
+        self.csv.writerow([now_time_str, callback_trigger, message])
+        self.csvfile.flush()
+
         if self.always_on:
             trigger = True
         else:
@@ -128,7 +136,7 @@ class BatRack(threading.Thread):
         [unit.start() for unit in self._units]
 
         # do an initial trigger evaluation, also starts recordings when no trigger is used at all
-        self.evaluate_triggers(None)
+        self.evaluate_triggers(False, "initial trigger")
 
         # print status reports
         while self._running:

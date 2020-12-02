@@ -48,10 +48,10 @@ class AbstractAnalysisUnit(threading.Thread):
         """Return trigger state based on this sensor."""
         return self._trigger
 
-    def _set_trigger(self, trigger):
-        logger.info(f"setting {self.__class__.__name__} trigger: {trigger}")
+    def _set_trigger(self, trigger, message):
+        logger.info(f"setting {self.__class__.__name__} trigger {trigger}: {message}")
         self._trigger = trigger
-        self._trigger_callback(trigger)
+        self._trigger_callback(trigger, message)
 
     def stop(self):
         """Stop and join the running threaded sensor."""
@@ -292,11 +292,11 @@ class AudioAnalysisUnit(AbstractAnalysisUnit):
             # in the moment we done have a relay anymore we can delete the
             # lower boundary
             if 2 <= self.__pings and not self._trigger:
-                self._set_trigger(True)
+                self._set_trigger(True, f"audio, {self.__pings} pings")
 
             # stop audio if thresbold of quiet blocks is met
             if self.__quiet_blocks > self.quiet_blocks_max and self._trigger:
-                self._set_trigger(False)
+                self._set_trigger(False, f"audio, {self.__quiet_blocks} quiet blocks")
                 self.__pings = 0
 
             self.__noise_blocks = 0
@@ -500,16 +500,12 @@ class VHFAnalysisUnit(AbstractAnalysisUnit):
                 # TODO: set this from db_ts, instead of local time
                 # this could lead to decreasing of untrigger_ts, which could be avoided by calling max(untrigger_ts_old, ..._new)
                 untrigger_ts = time.time() + self.untrigger_duration_s
+                self._set_trigger(True, f"vhf, {frequency_mhz:.3f} MHz, {sig_strength} dBm, {count} sigs, {var}:.3f var")
 
             # if untrigger time is over
             if untrigger_ts < time.time():
                 if self._trigger:
-                    self._set_trigger(False)
-
-            # untrigger time is not over
-            else:
-                if not self._trigger:
-                    self._set_trigger(True)
+                    self._set_trigger(False, "vhf, timeout")
 
             # higher sleep time decreases load, increases jitter / delay for new signals
             time.sleep(self.sig_poll_interval_s)
