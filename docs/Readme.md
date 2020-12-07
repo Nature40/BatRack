@@ -3,6 +3,12 @@ BatRack
 
 Sense and record bats based on visuals, audio and VHF signals.
 
+<figure class="video_container">
+  <video controls="true" allowfullscreen="true">
+    <source src="schwaermende_mbecs.mp4" type="video/mp4">
+  </video>
+</figure>
+
 ## Configuring BatRack
 
 BatRack is configured through a configuration file, which is loaded on startup.
