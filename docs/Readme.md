@@ -3,11 +3,17 @@ BatRack
 
 Sense and record bats based on visuals, audio and VHF signals.
 
+BatRack can capture videos like the following in an automatic and sensor triggered way.
+
 <figure class="video_container">
   <video controls="true" allowfullscreen="true">
     <source src="schwaermende_mbecs.mp4" type="video/mp4">
   </video>
 </figure>
+
+![Alt-Text](0FB28205-DB5F-4A3D-9393-058B10ACB49A_1_105_c.jpeg)
+
+# Documentation
 
 ## Configuring BatRack
 
