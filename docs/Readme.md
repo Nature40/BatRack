@@ -11,7 +11,7 @@ BatRack can capture videos like the following in an automatic and sensor trigger
   </video>
 </figure>
 
-![Alt-Text](0FB28205-DB5F-4A3D-9393-058B10ACB49A_1_105_c.jpeg)
+![Photograph of a BatRack running a recording at night.](img/batrack-city.jpg)
 
 # Documentation
 

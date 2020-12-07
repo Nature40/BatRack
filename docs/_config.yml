@@ -1,1 +1,5 @@
 theme: jekyll-theme-midnight
+
+title: "BatRack"
+description: "Sense and record bats based on visuals, audio and VHF signals."
+show_downloads: false
