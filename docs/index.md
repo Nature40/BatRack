@@ -1,5 +1,6 @@
 BatRack
 ===
+index
 
 Sense and record bats based on visuals, audio and VHF signals.
 
