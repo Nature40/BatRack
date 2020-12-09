@@ -7,7 +7,7 @@
 BatRack can capture videos like the following in an automatic and sensor triggered way.
 
 <figure class="video_container">
-  <video controls="true" allowfullscreen="true">
+  <video controls="true" allowfullscreen="true" width="100%">
     <source src="schwaermende_mbecs.mp4" type="video/mp4">
   </video>
 </figure>
@@ -15,6 +15,14 @@ BatRack can capture videos like the following in an automatic and sensor trigger
 An example spectrogram of bat calls recorded by BatRack. (It was post-processed by audacity by hand with moise filter, highpass and lowpass filter)
 
 ![Spectrogram of a batcall recorded by BatRack](img/bat_calls.jpeg)
+
+The following video shows the match between the incoming vhf signals and the recorded video.
+
+<figure class="video_container"> 
+  <video controls="true" allowfullscreen="true" width="100%">
+    <source src="vhf_video_match.mp4" type="video/mp4">
+  </video>
+</figure>
 
 ## Parts list
 
