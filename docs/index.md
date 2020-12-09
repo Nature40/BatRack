@@ -67,17 +67,46 @@ To rebuild BatRack in the hole setup you have to buy the following parts.
 |                           |       |                |                |                 |
 | Total                     |       |                |                |      1.923,10 € |
 
-With all parts you can build BatRack by following the instructions of the following steps:
+### A very short instruction of building a BatRack prototype
 
-Step 1:
+A longer and final version will be added shortly. At the moment not all final feature are presented by the pictures. 
+But you cam get an impression of the building process of BatRack and the deployment in the field. 
 
-Step 2:
+#### Step 1:
 
-Step 3:
+Add the basic components to the main BatRack case and apply the first wires. 
 
-Step 4:
+![BatRack with basic wiring](img/batrack-basic-wiring.jpeg)
 
-# Flowchart
+#### Step 2:
+
+Add the additional wires as shown in the picture and mount microphone and camera.
+
+![BatRack with all wires](img/batrack-more-wiring.jpeg)
+
+#### Step 3:
+
+Now BatRack should look like the following. In this image the Neutrik HDMI feedthrought solution is not installed. 
+In case of nice weather you can also go in the field with a prototype build like that. 
+
+![How BatRack looks on the outside](img/batrack-outside-look.jpeg)
+
+#### Step 4:
+
+The last step is inserting a sd card with an flashed image from [BatRack image page](https://github.com/Nature40/Sensorboxes-Images/releases/tag/batrack-0.1) and deploy BatRack in the field.
+
+![BatRack deployed in the wild](img/batrack-deployment.jpeg)
+
+You can also watch the live video stream over wifi from any mobile end device.
+
+![Live view over wifi from the BatRack video stream](img/batrack-liveview.jpeg)
+
+![Night view over wifi from the BatRack video stream](img/batrack-night-view.jpeg)
+
+## Flowchart
+
+The Audio analysis unit and the video analysis unit are a bit tricky to understand and some config options are use to fit the behaviour of BatRack your needs. 
+So in the following flowchart you can see the main concept of both units and the interaction with the config. 
 
 ![Flowchart of audio and video unit](flowchart.pdf)
 
