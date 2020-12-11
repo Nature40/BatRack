@@ -43,7 +43,7 @@ In some cases no explicit product name is given, this item are belong very close
 
 An overview of the overall design of BatRack is illustrated in the following graphic.
 
-![Schematics of BatRack.](img/BatRackSchematics.pdf)
+![Schematics of BatRack.](img/BatRackSchematic.pdf)
 
 | Position                  | Count | Part in graphic | Price per unit | Price summed up | Product name                                      |
 |---------------------------|-------|-----------------|----------------|-----------------|---------------------------------------------------|
