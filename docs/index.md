@@ -1,11 +1,19 @@
 # BatRack in a nutshell 
 
-As an introduction, a few examples are shown here to illustrate what kind of data BatRack can record.
-Furthermore, this should give an insight into what conclusions could be possible with this data and which knowledge can be derived.
+The BatRack is an open-source multi-sensor tool consisting of an audio sensor, a camera unit and an automatic radio tracking unit (Gottwald et al 2019).
+It is designed to allow automatic observation of bats in the wild and, depending on the configuration, to assign the observations to individuals.
+Bat calls can be used as a trigger for the camera, enabling reliable recording.
+VHF can also be used as a trigger for video and audio recordings and additionally allows the recordings to be assigned to individuals equipped with VHF transmitters.
+The different sensors are able to fill in information gaps of the other sensor.
+This page is intended to provide an in-depth overview of the functionality of the BatRack and to enable a replication.
+For a detailed description of the possible applications without performance, see the corresponding publication.
 
 ![Photograph of a BatRack running a recording at night.](img/batrack-city.jpg)
 
 ### Examples:
+
+In the following we show an example video and an example audio recording.
+In addition, an animation illustrates the principle of individual recognition.
 
 The following video was recorded by BatRack and was triggered automatically by VHF.
 The triggering could also have been done by an audio trigger.
@@ -47,7 +55,7 @@ An overview of the overall design of BatRack is illustrated in the following gra
 
 | Position                  | Count | Part in graphic | Price per unit | Price summed up | Product name                                      |
 |---------------------------|-------|-----------------|----------------|-----------------|---------------------------------------------------|
-| raspberry Pi              |     1 | A               |        40,00 € |         40,00 € | Raspberry pi 3 b+                                 |
+| raspberry pi              |     1 | A               |        40,00 € |         40,00 € | Raspberry Pi 3 b+                                 |
 | case (big)                |     1 |                 |        20,00 € |         20,00 € | Spelsberg TK PS 2518-11-o                         |
 | case (small)              |     1 |                 |        25,00 € |         15,00 € | Spelsberg TG PC 1208-9-o                          |
 | ultrasonic microphone     |     1 | F               |       250,00 € |        250,00 € | Ultramic UM250K                                   |
@@ -57,7 +65,7 @@ An overview of the overall design of BatRack is illustrated in the following gra
 | ir led                    |     1 | G               |        70,00 € |         70,00 € |                                                   |
 | csi hdmi adapter          |     1 | L               |         9,00 € |          9,00 € | Arducam CSI to HDMI cable                         |
 | hdmi feedthrough          |     2 | L               |        12,00 € |         24,00 € | Neutrik NAHDMI-W-B                                |
-| hdmi cabel outdoor        |     1 |                 |        39,00 € |         39,00 € | Neutrik NKHDMI-3                                  |
+| hdmi cable outdoor        |     1 |                 |        39,00 € |         39,00 € | Neutrik NKHDMI-3                                  |
 | hdmi cable short          |     2 | L               |         3,00 € |          4,00 € | DeLock Adaptor HDMI-A Male to A Male              |
 | sdr stick                 |     1 | B               |        40,00 € |         40,00 € | Nooelec NESDR SMArt v4 SDR                        |
 | vhf antenna               |     1 | I               |        50,00 € |         50,00 € |                                                   |
