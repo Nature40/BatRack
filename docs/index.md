@@ -59,7 +59,7 @@ For the products not explicitly mentioned, we either have no specific recommenda
 
 An overview of the overall design of BatRack is illustrated in the following graphic.
 
-![Schematics of BatRack.](BatRackSchematic.pdf)
+![Schematics of BatRack.](img/BatRackSchematic.png)
 
 | Position                  | Count | Part in graphic | Price per unit | Price summed up | Product name                                      |
 |---------------------------|-------|-----------------|----------------|-----------------|---------------------------------------------------|
@@ -211,7 +211,7 @@ The following flowchart illustrates the program flow of the audio and vhf unit.
 Here the individual decisions are shown as well as the influence of configuration options on the behavior of the algorithm.
 This also shows that the flexible configuration options make it possible to adapt BatRack to a wide range of applications.
 
-![Flowchart of audio and video unit](flowchart.pdf)
+![Flowchart of audio and video unit](img/flowchart.png)
 
 ## Configuring BatRack
 
