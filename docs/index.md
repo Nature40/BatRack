@@ -31,12 +31,20 @@ All this data is collected in the normal environment of the bats and so is an op
 
 ![Spectrogram of a bat call recorded by BatRack](img/bat_calls.jpeg)
 
-The following video shows the match between the incoming vhf signals and the recorded video.
-In the lower left corner the vhf signal is plotted.
-The current incoming signal is always shown with a red dot.
-This allows the current signal to be compared with the video recordings and the incoming signals to be assigned to a specific animal.
-This is also an excellent source of data for machine learning.
-With this parallel recorded data, the behavior to be recognized can be mapped from the video data to the vhf data and thus a data set can be created for machine learning.
+The animation illustrates the principle of individual recognition using VHF.
+For this purpose the VHF signals recorded by the radio tracking unit were matched with the frames of the video (red dot in the graphic).
+The tagged individual approaches the observed tree at 11:13 pm.
+The recording is triggered before the individual enters the observed area.
+After the individual appears, a short swarming sequence begins.
+The bat flies around the tree and approaches the tree cave several times.
+The VHF signal shows strong fluctuations during the swarming episode.
+At about 11:14 pm the individual enters the tree.
+The signal fluctuations decrease significantly.
+At 11:14:20 pm a swarming bat appears in the picture again.
+Since the VHF signal is still stationary, it cannot be the tagged individual.
+A few seconds after this 2nd individual enters the tree, a bat flies out of the tree hollow.
+The VHF signal simultaneously shows strong fluctuations and a sudden drop.
+The tagged individual has emerged from the tree hollow.
 
 <figure class="video_container"> 
   <video controls="true" allowfullscreen="true" width="100%">
