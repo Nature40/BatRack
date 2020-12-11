@@ -80,49 +80,75 @@ Or any part of this type can be purchased.
 |                           |       |                |                |                 |                                                   |
 | Total                     |       |                |                |      1.947,70 € |                                                   |
 
-### Instruction of building a BatRack prototype
+## Instruction of building a BatRack prototype
 
-#### Step 1 - Main case and infrared led light:
+### Step 1 - Main case and infrared led light:
 
 The first thing to start with is the main case of BatRack.
 Here, holes are drilled for all required feed-throughs and the components are inserted.
 On the left short side both power and the HDMI signal is carried out.
+
 ![BatRack - the hdmi and power feed-through](img/batrack-power-hdmi.jpeg)
+
 On the opposite side the feed-through for the antenna cable as well as the connection to the IR spotlight is created and the spotlight is screwed directly to the case.
+
 ![BatRack - holes for vhf cable and ir spotlight](img/batrack-vhf-ir-holes.jpeg)
+
 On the top side of the case, two holes are drilled for the attachment to the tripod and two screws are attached.
+
 ![BatRack - mountpoints for BatRack](img/batrack-mount.jpeg)
+
 The construction of the interior can now be continued with the cabling.
 For this, power must be drawn from the outside to the 12V distribution and at the same time made available to the IR spotlight via the relay.
+
 ![BatRack - the wiring of the BatRack main box](img/batrack-wiring.jpeg)
+
 In addition, the relay is connected to the Pi, the concrete wiring can be read in the following picture.
+
 ![BatRack - pin out relay](img/batrack-pin-out-relay.jpeg)
+
 Now the 12V to 5V adaption can be installed and the connection of the Pi can be done.
+
 ![BatRack - 5V power connection](img/batrack-inside-power.jpeg)
+
 Finally SDR stick, LTE stick and the ultrasonic microphone are connected via USB.
+
 ![BatRack - install LTE stick and SDR stick](img/batrack-sdr-lte.jpeg)
+
 The whole setup of the main box can be seen in the following picture.
+
 ![BatRack - Main box final view](img/batrack-main-box-final.jpeg)
 
-#### Step 2 - Camera case:
+### Step 2 - Camera case:
 
 The first thing to do is to drill the holes for the camera, the HDMI feed-through and the attachment to the ir headlight.
 Then the camera can be inserted and screwed to the housing.
+
 ![BatRack - install the camera in the box](img/batrack-camera-housing.jpeg)
+
 When this is done, the feed-through for the HDMI signal should be attached.
+
 ![BatRack - Attach HDMI feed-through](img/batrack-hdmi-feed-through.jpeg)
+
 The inside of the box now looks like this.
+
 ![BatRack - inside of the camera box](img/batrack-camera-box-inside.jpeg)
+
 At the attached camera should be shielded with a vhf fleece.
 Especially the high quality camera send out vhf noise, if the NoIR camera is use this step can be skipped.
+
 ![BatRack - camera is shielded with vhf fleece](img/batrack-vhf-fleece.jpeg)
+
 The camera box, now ready for use, can be attached to the IR spotlight with two screws.
+
 ![BatRack - attach camera box to ir spotlight](img/batrack-camera-to-ir.jpeg)
+
 The result then looks like this.
 The camera holds to the housing without any other tools and the HDMI connection to the main box is waterproof.
+
 ![BatRack - final camera box](img/batrack-camera-box-final.jpeg)
 
-#### Step 3 - Deployment:
+### Step 3 - Deployment:
 
 The last step is inserting a sd card with an flashed image from [BatRack image page](https://github.com/Nature40/Sensorboxes-Images/releases/tag/batrack-0.1) and deploy BatRack in the field.
 
