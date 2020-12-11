@@ -4,7 +4,11 @@
 
 ### Examples:
 
-BatRack can capture videos like the following in an automatic and sensor triggered way.
+As an introduction, a few examples are shown here to illustrate what kind of data BatRack can record.
+Furthermore, this should give an insight into what conclusions could be possible with this data.
+
+The following video was recorded by BatRack and was triggered automatically by VHF.
+The triggering could also have been done by an audio trigger.
 
 <figure class="video_container">
   <video controls="true" allowfullscreen="true" width="100%">
@@ -12,11 +16,19 @@ BatRack can capture videos like the following in an automatic and sensor trigger
   </video>
 </figure>
 
-An example spectrogram of bat calls recorded by BatRack. (It was post-processed by audacity by hand with moise filter, highpass and lowpass filter)
+An example spectrogram of bat calls recorded by BatRack.
+(It was post-processed by audacity by hand with moise filter, highpass and lowpass filter)
+The possibility to time match both video and audio, BatRack can capture the matching sound for behaviour identified by the video recording.batrack
+All this data is collected in the normal environment of the bats and so is an optimal source for machine learning approaches.
 
-![Spectrogram of a batcall recorded by BatRack](img/bat_calls.jpeg)
+![Spectrogram of a bat call recorded by BatRack](img/bat_calls.jpeg)
 
 The following video shows the match between the incoming vhf signals and the recorded video.
+In the lower left corner the vhf signal is plotted.
+The current incoming signal is always shown with a red dot.
+This allows the current signal to be compared with the video recordings and the incoming signals to be assigned to a specific animal.
+This is also an excellent source of data for machine learning.
+With this parallel recorded data, the behavior to be recognized can be mapped from the video data to the vhf data and thus a data set can be created for machine learning.
 
 <figure class="video_container"> 
   <video controls="true" allowfullscreen="true" width="100%">
@@ -124,8 +136,9 @@ You can also watch the live video stream over wifi from any mobile end device.
 
 ## Flowchart
 
-The Audio analysis unit and the video analysis unit are a bit tricky to understand and some config options are use to fit the behaviour of BatRack your needs. 
-So in the following flowchart you can see the main concept of both units and the interaction with the config. 
+The following flowchart illustrates the program flow of the audio and vhf unit.
+Here the individual decisions are shown as well as the influence of configuration options on the behavior of the algorithm.
+Here it can also be taken that the configuration options offer the possibility of adapting the behavior to the quite special needs.
 
 ![Flowchart of audio and video unit](flowchart.pdf)
 
@@ -138,7 +151,7 @@ For ssh you have to use the command *ssh pi@169.254.0.1* over the wifi of BatRac
 When connected the file */boot/BatRack.conf* can be accessed via *nano /boot/BatRack.conf* and can be changed.
 The camera can be accessed over *169.254.0.1:81* or *169.254.0.1/camera* or by clicking on the camera unit in the control panel on *169.254.0.1*.
 We recorded video in 720p@30hz with the NoIR camera and in 1080p@30hz with the high quality camera.
-The all setting for the camera can be changed on the same address.
+All setting for the camera can be changed on the same address.
 
 ### Continous Operation Mode
 
