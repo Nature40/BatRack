@@ -90,30 +90,44 @@ On the left short side both power and the HDMI signal is carried out.
 
 ![BatRack - the hdmi and power feed-through](img/batrack-power-hdmi.jpeg)
 
+-----
+
 On the opposite side the feed-through for the antenna cable as well as the connection to the IR spotlight is created and the spotlight is screwed directly to the case.
 
 ![BatRack - holes for vhf cable and ir spotlight](img/batrack-vhf-ir-holes.jpeg)
 
+-----
+
 On the top side of the case, two holes are drilled for the attachment to the tripod and two screws are attached.
 
 ![BatRack - mountpoints for BatRack](img/batrack-mount.jpeg)
+
+-----
 
 The construction of the interior can now be continued with the cabling.
 For this, power must be drawn from the outside to the 12V distribution and at the same time made available to the IR spotlight via the relay.
 
 ![BatRack - the wiring of the BatRack main box](img/batrack-wiring.jpeg)
 
+-----
+
 In addition, the relay is connected to the Pi, the concrete wiring can be read in the following picture.
 
 ![BatRack - pin out relay](img/batrack-pin-out-relay.jpeg)
+
+-----
 
 Now the 12V to 5V adaption can be installed and the connection of the Pi can be done.
 
 ![BatRack - 5V power connection](img/batrack-inside-power.jpeg)
 
+-----
+
 Finally SDR stick, LTE stick and the ultrasonic microphone are connected via USB.
 
 ![BatRack - install LTE stick and SDR stick](img/batrack-sdr-lte.jpeg)
+
+-----
 
 The whole setup of the main box can be seen in the following picture.
 
@@ -126,22 +140,32 @@ Then the camera can be inserted and screwed to the housing.
 
 ![BatRack - install the camera in the box](img/batrack-camera-housing.jpeg)
 
+-----
+
 When this is done, the feed-through for the HDMI signal should be attached.
 
 ![BatRack - Attach HDMI feed-through](img/batrack-hdmi-feed-through.jpeg)
 
+-----
+
 The inside of the box now looks like this.
 
 ![BatRack - inside of the camera box](img/batrack-camera-box-inside.jpeg)
+
+-----
 
 At the attached camera should be shielded with a vhf fleece.
 Especially the high quality camera send out vhf noise, if the NoIR camera is use this step can be skipped.
 
 ![BatRack - camera is shielded with vhf fleece](img/batrack-vhf-fleece.jpeg)
 
+-----
+
 The camera box, now ready for use, can be attached to the IR spotlight with two screws.
 
 ![BatRack - attach camera box to ir spotlight](img/batrack-camera-to-ir.jpeg)
+
+-----
 
 The result then looks like this.
 The camera holds to the housing without any other tools and the HDMI connection to the main box is waterproof.
@@ -153,6 +177,8 @@ The camera holds to the housing without any other tools and the HDMI connection 
 The last step is inserting a sd card with an flashed image from [BatRack image page](https://github.com/Nature40/Sensorboxes-Images/releases/tag/batrack-0.1) and deploy BatRack in the field.
 
 ![BatRack deployed in the wild](img/batrack-deployment.jpeg)
+
+-----
 
 You can also watch the live video stream over wifi from any mobile end device.
 
@@ -173,8 +199,8 @@ Here it can also be taken that the configuration options offer the possibility o
 BatRack is configured through a configuration file, which is loaded on startup.
 
 It can be accessed via file manager on the sd card in */boot/BatRack.conf* or via ssh on the running system.
-For ssh you have to use the command *ssh pi@169.254.0.1* over the wifi of BatRack and use the password *natur*.
-When connected the file */boot/BatRack.conf* can be accessed via *nano /boot/BatRack.conf* and can be changed.
+For ssh you have to use the command `ssh pi@169.254.0.1` over the wifi of BatRack and use the password *natur*.
+When connected the file */boot/BatRack.conf* can be accessed via `nano /boot/BatRack.conf` and can be changed.
 The camera can be accessed over *169.254.0.1:81* or *169.254.0.1/camera* or by clicking on the camera unit in the control panel on *169.254.0.1*.
 We recorded video in 720p@30hz with the NoIR camera and in 1080p@30hz with the high quality camera.
 All setting for the camera can be changed on the same address.
