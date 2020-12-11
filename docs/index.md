@@ -6,7 +6,7 @@ Bat calls can be used as a trigger for the camera, enabling reliable recording.
 VHF can also be used as a trigger for video and audio recordings and additionally allows the recordings to be assigned to individuals equipped with VHF transmitters.
 The different sensors are able to fill in information gaps of the other sensor.
 This page is intended to provide an in-depth overview of the functionality of the BatRack and to enable a replication.
-For a detailed description of the possible applications without performance, see the corresponding publication.
+For a detailed description of the possible applications and an assessment of the performance of the trigger approach see the corresponding publication.
 
 ![Photograph of a BatRack running a recording at night.](img/batrack-city.jpg)
 
@@ -59,7 +59,7 @@ For the products not explicitly mentioned, we either have no specific recommenda
 
 An overview of the overall design of BatRack is illustrated in the following graphic.
 
-![Schematics of BatRack.](img/BatRackSchematic.pdf)
+![Schematics of BatRack.](BatRackSchematic.pdf)
 
 | Position                  | Count | Part in graphic | Price per unit | Price summed up | Product name                                      |
 |---------------------------|-------|-----------------|----------------|-----------------|---------------------------------------------------|
