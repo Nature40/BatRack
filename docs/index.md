@@ -26,72 +26,94 @@ The following video shows the match between the incoming vhf signals and the rec
 
 ## Parts list
 
-To rebuild BatRack in the hole setup you have to buy the following parts. 
+To rebuild BatRack the following components are needed.
+In some cases no explicit product name is given, this item are belong very close to the needs of the special project and project area.
+Or any part of this type can be purchased.
 
-| Position                  | Count | Part list item | Price per unit | Price summed up |
-|---------------------------|-------|----------------|----------------|-----------------|
-| raspberry Pi              |     1 | A              |        40,00 € |         40,00 € |
-| case (big)                |     1 |                |        35,00 € |         35,00 € |
-| case (small)              |     1 |                |        25,00 € |         25,00 € |
-| ultrasonic microphone     |     1 | F              |       250,00 € |        250,00 € |
-| hq camera                 |     1 | H              |        55,00 € |         55,00 € |
-| camera optic              |     1 | H              |        25,00 € |         25,00 € |
-| relaise                   |     1 | E              |         1,40 € |          1,40 € |
-| ir led                    |     1 | G              |        70,00 € |         70,00 € |
-| ribbon hdmi adapter       |     1 | L              |         9,00 € |          9,00 € |
-| neutrik feedthrough       |     2 | L              |        12,00 € |         24,00 € |
-| neutrik hdmi cabel        |     1 |                |        39,00 € |         39,00 € |
-| hdmi cable short          |     2 | L              |         3,00 € |          6,00 € |
-| sdr stick                 |     1 | B              |        40,00 € |         40,00 € |
-| vhf antenna               |     1 | I              |        50,00 € |         50,00 € |
-| vhf cable                 |     1 |                |        15,00 € |         15,00 € |
-| sma adapter               |     1 |                |         3,20 € |          3,20 € |
-| 12v cigarette lighter     |     1 | D              |         7,00 € |          7,00 € |
-| 12v -> 5v adapter         |     1 | D              |         7,00 € |          7,00 € |
-| neutrik power plug        |     1 |                |        12,00 € |         12,00 € |
-| 3D printed mounting plate |     1 |                |         3,00 € |          3,00 € |
-| feedthrough led           |     1 |                |         0,50 € |          0,50 € |
-| moun microphone           |     1 |                |         1,50 € |          1,50 € |
-| mount camera              |     1 |                |            2,5 |          2,50 € |
-| usb a -> mirco usb cable  |     1 |                |           1,25 |          1,25 € |
-| rtc                       |     1 | C              |         3,20 € |          3,20 € |
-| Subtotal                  |       |                |                |        725,55 € |
-| tripod mount              |     1 |                |        80,00 € |         80,00 € |
-| wam bam box               |     1 |                |        30,00 € |         30,00 € |
-| solar charger             |     1 |                |        20,00 € |         20,00 € |
-| battery                   |     1 | J              |       150,00 € |        150,00 € |
-| fuse                      |     1 |                |        10,00 € |         10,00 € |
-| power cable               |     1 |                |         5,00 € |          5,00 € |
-| neutrik power plug        |     1 |                |        12,00 € |         12,00 € |
-| solar panel               |     1 | K              |       165,00 € |        165,00 € |
-|                           |       |                |                |                 |
-| Total                     |       |                |                |      1.923,10 € |
+| Position                  | Count | Part list item | Price per unit | Price summed up | Product name                                      |
+|---------------------------|-------|----------------|----------------|-----------------|---------------------------------------------------|
+| raspberry Pi              |     1 | A              |        40,00 € |         40,00 € | Raspberry pi 3 b+                                 |
+| case (big)                |     1 |                |        20,00 € |         20,00 € | Spelsberg TK PS 2518-11-o                         |
+| case (small)              |     1 |                |        25,00 € |         15,00 € | Spelsberg TG PC 1208-9-o                          |
+| ultrasonic microphone     |     1 | F              |       250,00 € |        250,00 € | Ultramic UM250K                                   |
+| hq camera                 |     1 | H              |        55,00 € |         55,00 € | Raspberry Pi High Quality Camera                  |
+| camera lens               |     1 | H              |        25,00 € |         25,00 € | 6mm lens for Raspberry Pi HQ camera module        |
+| relay                     |     1 | E              |         1,40 € |          1,40 € | KY-019 5 V One Channel Relay                      |
+| ir led                    |     1 | G              |        70,00 € |         70,00 € |                                                   |
+| csi hdmi adapter          |     1 | L              |         9,00 € |          9,00 € | Arducam CSI to HDMI cable                         |
+| hdmi feedthrough          |     2 | L              |        12,00 € |         24,00 € | Neutrik NAHDMI-W-B                                |
+| hdmi cabel outdoor        |     1 |                |        39,00 € |         39,00 € | Neutrik NKHDMI-3                                  |
+| hdmi cable short          |     2 | L              |         3,00 € |          4,00 € | DeLock Adaptor HDMI-A Male to A Male              |
+| sdr stick                 |     1 | B              |        40,00 € |         40,00 € | Nooelec NESDR SMArt v4 SDR                        |
+| vhf antenna               |     1 | I              |        50,00 € |         50,00 € |                                                   |
+| vhf cable                 |     1 |                |        15,00 € |         15,00 € |                                                   |
+| sma adapter               |     1 |                |         3,20 € |          3,20 € | Blueberry Each® Coaxial Adaptor                   |
+| 12v cigarette lighter     |     1 | D              |         7,00 € |          7,00 € | Carpoint 0523484 Waterproof Buillt-Up Socket 12 V |
+| 12v -> 5v adapter         |     1 | D              |         7,00 € |          7,00 € | RAVPower 24 W 4.8 A Dual USB Mini Car Charger     |
+| 3D printed mounting plate |     1 |                |         3,00 € |          3,00 € |                                                   |
+| feedthrough led           |     1 |                |         0,50 € |          0,50 € |                                                   |
+| moun microphone           |     1 |                |         1,50 € |          1,50 € | JSM32KVS-S Cable Connectors M32                   |
+| usb a -> mirco usb cable  |     1 |                |           1,25 |          1,25 € |                                                   |
+| lte stick                 |     1 |                |        45,00 € |         45,00 € | Huawei Surfstick, E3372H-320 LTE                  |
+| Subtotal                  |       |                |                |        737,85 € |                                                   |
+| tripod mount              |     1 |                |        80,00 € |         80,00 € | Gravity GLSTBTV28                                 |
+| wam bam box               |     1 |                |        30,00 € |         30,00 € |                                                   |
+| solar charger             |     1 |                |        20,00 € |         20,00 € |                                                   |
+| battery                   |     1 | J              |       150,00 € |        150,00 € |                                                   |
+| fuse                      |     1 |                |        10,00 € |         10,00 € |                                                   |
+| power cable               |     1 |                |         5,00 € |          5,00 € |                                                   |
+| power plug male           |     1 |                |        12,00 € |         12,00 € | Neutrik                                                  |
+| power plug female         |     1 |                |        12,00 € |         12,00 € | Neutrik                                                  |
+| solar panel               |     1 | K              |       165,00 € |        165,00 € |                                                   |
+|                           |       |                |                |                 |                                                   |
+| Total                     |       |                |                |      1.947,70 € |                                                   |
 
 ### A very short instruction of building a BatRack prototype
 
-A longer and final version will be added shortly. At the moment not all final feature are presented by the pictures. 
-But you cam get an impression of the building process of BatRack and the deployment in the field. 
+A longer and final version will be added shortly.
+At the moment not all final feature are presented by the pictures.
+But you can get an impression of the building process of BatRack and the deployment in the field.
 
-#### Step 1:
+#### Step 1 - main case and infrared led light:
 
-Add the basic components to the main BatRack case and apply the first wires. 
+The first thing to start with is the main case of BatRack.
+Here, holes are drilled for all required feed-throughs and the components are inserted.
+On the left short side both power and the HDMI signal is carried out.
+![BatRack - the hdmi and power feed-through](img/batrack-power-hdmi.jpeg)
+On the opposite side the feed-through for the antenna cable as well as the connection to the IR spotlight is created and the spotlight is screwed directly to the case.
+![BatRack - holes for vhf cable and ir spotlight](img/batrack-vhf-ir-holes.jpeg)
+On the top side of the case, two holes are drilled for the attachment to the tripod and two screws are attached.
+![BatRack - mountpoints for BatRack](img/batrack-mount.jpeg)
+The construction of the interior can now be continued with the cabling.
+For this, power must be drawn from the outside to the 12V distribution and at the same time made available to the IR spotlight via the relay.
+![BatRack - the wiring of the BatRack main box](img/batrack-wiring.jpeg)
+In addition, the relay is connected to the Pi, the concrete wiring can be read in the following picture.
+![BatRack - pin out relay](img/batrack-pin-out-relay.jpeg)
+Now the 12V to 5V adaption can be installed and the connection of the Pi can be done.
+![BatRack - 5V power connection](img/batrack-inside-power.jpeg)
+Finally SDR stick, LTE stick and the ultrasonic microphone are connected via USB.
+![BatRack - install LTE stick and SDR stick](img/batrack-sdr-lte.jpeg)
+The whole setup of the main box can be seen in the following picture.
+![BatRack - Main box final view](img/batrack-main-box-final.jpeg)
 
-![BatRack with basic wiring](img/batrack-basic-wiring.jpeg)
+#### Step 2 - camera case:
 
-#### Step 2:
+The first thing to do is to drill the holes for the camera, the HDMI feed-through and the attachment to the ir headlight.
+Then the camera can be inserted and screwed to the housing.
+![BatRack - install the camera in the box](img/batrack-camera-housing.jpeg)
+When this is done, the feed-through for the HDMI signal should be attached.
+![BatRack - Attach HDMI feed-through](img/batrack-hdmi-feed-through.jpeg)
+The inside of the box now looks like this.
+![BatRack - inside of the camera box](img/batrack-camera-box-inside.jpeg)
+At the attached camera should be shielded with a vhf fleece.
+![BatRack - camera is shielded with vhf fleece](img/batrack-vhf-fleece.jpeg)
+The camera box, now ready for use, can be attached to the IR spotlight with two screws.
+![BatRack - attach camera box to ir spotlight](img/batrack-camera-to-ir.jpeg)
+The result then looks like this.
+The camera holds to the housing without any other tools and the HDMI connection to the main box is waterproof.
+![BatRack - final camera box](img/batrack-camera-box-final.jpeg)
 
-Add the additional wires as shown in the picture and mount microphone and camera.
-
-![BatRack with all wires](img/batrack-more-wiring.jpeg)
-
-#### Step 3:
-
-Now BatRack should look like the following. In this image the Neutrik HDMI feedthrought solution is not installed. 
-In case of nice weather you can also go in the field with a prototype build like that. 
-
-![How BatRack looks on the outside](img/batrack-outside-look.jpeg)
-
-#### Step 4:
+#### Step 3 - deployment:
 
 The last step is inserting a sd card with an flashed image from [BatRack image page](https://github.com/Nature40/Sensorboxes-Images/releases/tag/batrack-0.1) and deploy BatRack in the field.
 
@@ -113,6 +135,10 @@ So in the following flowchart you can see the main concept of both units and the
 ## Configuring BatRack
 
 BatRack is configured through a configuration file, which is loaded on startup.
+
+It can be accessed via file manager on the sd card in */boot/BatRack.conf* or via ssh on the running system.
+For ssh you have to use the command *ssh pi@169.254.0.1* over the wifi of BatRack and use the password *natur*
+When connected the file */boot/BatRack.conf* can be accessed via *nano /boot/BatRack.conf* and can be changed.
 
 ### Continous Operation Mode
 
