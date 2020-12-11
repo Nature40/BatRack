@@ -36,15 +36,15 @@ For this purpose the VHF signals recorded by the radio tracking unit were matche
 The tagged individual approaches the observed tree at 11:13 pm.
 The recording is triggered before the individual enters the observed area.
 After the individual appears, a short swarming sequence begins.
-The bat flies around the tree and approaches the tree cave several times.
+The bat flies around the tree and approaches the roost several times.
 The VHF signal shows strong fluctuations during the swarming episode.
 At about 11:14 pm the individual enters the tree.
 The signal fluctuations decrease significantly.
 At 11:14:20 pm a swarming bat appears in the picture again.
 Since the VHF signal is still stationary, it cannot be the tagged individual.
-A few seconds after this 2nd individual enters the tree, a bat flies out of the tree hollow.
+A few seconds after this 2nd individual enters the tree, a bat flies out of the roost.
 The VHF signal simultaneously shows strong fluctuations and a sudden drop.
-The tagged individual has emerged from the tree hollow.
+The tagged individual has emerged from the roost.
 
 <figure class="video_container"> 
   <video controls="true" allowfullscreen="true" width="100%">
@@ -55,7 +55,7 @@ The tagged individual has emerged from the tree hollow.
 ## Parts list
 
 To rebuild BatRack the following components are needed.
-In some cases no explicit product name is given, this item are belong very close to the needs of the special project and project area or any part of this type can be purchased.
+For the products not explicitly mentioned, we either have no specific recommendation or the choice depends strongly on the planned project
 
 An overview of the overall design of BatRack is illustrated in the following graphic.
 
@@ -173,8 +173,8 @@ The inside of the box now looks like this.
 
 -----
 
-At the attached camera should be shielded with a vhf fleece.
-Especially the high quality camera send out vhf noise, if the NoIR camera is use this step can be skipped.
+The camera should be shielded with a vhf fleece.
+Especially the high quality camera s produces vhf noise, if the NoIR camera is used this step can be skipped.
 
 ![BatRack - camera is shielded with vhf fleece](img/batrack-vhf-fleece.jpeg)
 
@@ -209,7 +209,7 @@ You can also watch the live video stream over wifi from any mobile end device.
 
 The following flowchart illustrates the program flow of the audio and vhf unit.
 Here the individual decisions are shown as well as the influence of configuration options on the behavior of the algorithm.
-Here it can also be taken that the configuration options offer the possibility of adapting the behavior to the quite special needs.
+This also shows that the flexible configuration options make it possible to adapt BatRack to a wide range of applications.
 
 ![Flowchart of audio and video unit](flowchart.pdf)
 
