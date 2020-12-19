@@ -324,6 +324,6 @@ apt-get install -y python3-numpy python3-pyaudio
 python3 -m pip install .
 ```
 
-## Softwar
+## Software
 
 The software can be found at: https://github.com/Nature40/BatRack and the final image at: published_later 
