@@ -463,6 +463,7 @@ class VHFAnalysisUnit(AbstractAnalysisUnit):
             cursor.execute(query, (db_id,))
 
             for db_id, db_ts, freq_rel, sig_strength in cursor.fetchall():
+                previous_absent: bool = False
                 frequency_mhz, sigs = get_freqs_list(freq_rel)
 
                 if not frequency_mhz:
@@ -482,25 +483,31 @@ class VHFAnalysisUnit(AbstractAnalysisUnit):
                 sig_start = db_ts - datetime.timedelta(seconds=self.freq_active_window_s)
                 sigs[:] = [sig for sig in sigs if sig[0] > sig_start]
 
-                # check if count threshold is met
+                # check if bats was absent before
                 count = len(sigs)
                 if count < self.freq_active_count:
-                    logger.debug(f"signal {frequency_mhz:.3f} MHz, {sig_strength} dBm: signals count low ({count}), discarding")
-                    continue
+                    previous_absent = True
+                    logger.debug(
+                        f"signal {frequency_mhz:.3f} MHz, {sig_strength} dBm: one of the first signals => match")
 
-                # check if freq can be considered active
-                var = np.std([sig[1] for sig in sigs])
-                if var < self.freq_active_var:
-                    logger.debug(f"signal {frequency_mhz:.3f} MHz, {sig_strength} dBm: frequency variance low ({var}), discarding")
-                    continue
+
+                #check if bat is active
+                if not previous_absent:
+                    var = np.std([sig[1] for sig in sigs])
+                    if var < self.freq_active_var:
+                        logger.debug(
+                            f"signal {frequency_mhz:.3f} MHz, {sig_strength} dBm: frequency variance low ({var}), discarding")
+                        continue
+                    else:
+                        logger.debug(
+                            f"signal: {frequency_mhz:.3f} MHz, {sig_strength} dBm: met all conditions (sig_count: {count}, sig_var: {var}:.3f)")
 
                 # set untrigger time if all criterions are met
-                logger.debug(f"signal: {frequency_mhz:.3f} MHz, {sig_strength} dBm: met all conditions (sig_count: {count}, sig_var: {var}:.3f)")
-
                 # TODO: set this from db_ts, instead of local time
                 # this could lead to decreasing of untrigger_ts, which could be avoided by calling max(untrigger_ts_old, ..._new)
+                # if this is correct the 'sigs[:] = [sig for sig in sigs if sig[0] > sig_start]' statement should also be incorrect in some cases
                 untrigger_ts = time.time() + self.untrigger_duration_s
-                self._set_trigger(True, f"vhf, {frequency_mhz:.3f} MHz, {sig_strength} dBm, {count} sigs, {var}:.3f var")
+                self._set_trigger(True, f"vhf, {frequency_mhz:.3f} MHz, {sig_strength} dBm, {count} sigs")
 
             # if untrigger time is over
             if untrigger_ts < time.time():
