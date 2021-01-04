@@ -6,7 +6,7 @@ import threading
 import time
 import wave
 from distutils.util import strtobool
-from typing import List, Tuple, Dict
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import gpiozero
 import mysql.connector as mariadb
@@ -19,8 +19,8 @@ logger = logging.getLogger(__name__)
 class AbstractAnalysisUnit(threading.Thread):
     def __init__(
         self,
-        use_trigger: bool,
-        trigger_callback: callable,
+        use_trigger: Union[str, bool],
+        trigger_callback: Callable,
         data_path: str = ".",
         **kwargs,
     ):
@@ -29,7 +29,7 @@ class AbstractAnalysisUnit(threading.Thread):
         self.use_trigger: bool = strtobool(use_trigger) if isinstance(use_trigger, str) else bool(use_trigger)
         self.data_path: str = str(data_path)
 
-        self._trigger_callback: callable = trigger_callback
+        self._trigger_callback: Callable = trigger_callback
 
         self._running: bool = False
         self._trigger: bool = False
@@ -214,7 +214,7 @@ class AudioAnalysisUnit(AbstractAnalysisUnit):
         self.__wave_finalize()
         self._recording = False
 
-    def __find_input_device(self) -> int:
+    def __find_input_device(self) -> Optional[int]:
         """
         searches for a microphone and returns the device number
         :return: the device id
@@ -229,6 +229,7 @@ class AudioAnalysisUnit(AbstractAnalysisUnit):
                     return device_index
 
         logger.info("No preferred input found; using default input device.")
+        return None
 
     def __wave_initialize(self):
         if self.__wave:
@@ -395,7 +396,7 @@ class VHFAnalysisUnit(AbstractAnalysisUnit):
             raise ValueError(f"invalid format for frequencies, {type(sig_freqs_mhz)}:'{sig_freqs_mhz}'")
 
         # freqs_bins to contain old signal values for variance calc
-        self._freqs_bins: Dict[float, Tuple[int, int, List[datetime.datetime, float]]] = {}
+        self._freqs_bins: Dict[float, Tuple[float, float, List[Tuple[datetime.datetime, float]]]] = {}
         for freq_mhz in sig_freqs_mhz:
             freq_rel = int(freq_mhz * 1000 * 1000) - self.freq_center_hz
             lower = freq_rel - (self.freq_bw_hz / 2)
@@ -446,7 +447,7 @@ class VHFAnalysisUnit(AbstractAnalysisUnit):
         logger.info(f"Reading signals of database, starting with id:{db_id}, datetime: {db_ts}")
 
         # helper method to retrieve the signal list
-        def get_freqs_list(freq_rel: int) -> Tuple[float, List[Tuple[datetime.datetime, float]]]:
+        def get_freqs_list(freq_rel: int) -> Tuple[Optional[float], Optional[List[Tuple[datetime.datetime, float]]]]:
             for mhz, (lower, upper, sigs) in self._freqs_bins.items():
                 if freq_rel > lower and freq_rel < upper:
                     return (mhz, sigs)
@@ -487,20 +488,16 @@ class VHFAnalysisUnit(AbstractAnalysisUnit):
                 count = len(sigs)
                 if count < self.freq_active_count:
                     previous_absent = True
-                    logger.debug(
-                        f"signal {frequency_mhz:.3f} MHz, {sig_strength} dBm: one of the first signals => match")
+                    logger.debug(f"signal {frequency_mhz:.3f} MHz, {sig_strength} dBm: one of the first signals => match")
 
-
-                #check if bat is active
+                # check if bat is active
                 if not previous_absent:
                     var = np.std([sig[1] for sig in sigs])
                     if var < self.freq_active_var:
-                        logger.debug(
-                            f"signal {frequency_mhz:.3f} MHz, {sig_strength} dBm: frequency variance low ({var}), discarding")
+                        logger.debug(f"signal {frequency_mhz:.3f} MHz, {sig_strength} dBm: frequency variance low ({var}), discarding")
                         continue
                     else:
-                        logger.debug(
-                            f"signal: {frequency_mhz:.3f} MHz, {sig_strength} dBm: met all conditions (sig_count: {count}, sig_var: {var}:.3f)")
+                        logger.debug(f"signal: {frequency_mhz:.3f} MHz, {sig_strength} dBm: met all conditions (sig_count: {count}, sig_var: {var}:.3f)")
 
                 # set untrigger time if all criterions are met
                 # TODO: set this from db_ts, instead of local time

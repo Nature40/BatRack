@@ -11,7 +11,7 @@ import sys
 import threading
 import time
 from distutils.util import strtobool
-from typing import List
+from typing import List, Union
 
 import schedule
 
@@ -27,13 +27,13 @@ class BatRack(threading.Thread):
         name: str = "default",
         data_path: str = "data",
         duty_cycle_s: int = 10,
-        use_vhf: bool = True,
-        use_audio: bool = True,
-        use_camera: bool = True,
-        use_trigger_vhf: bool = True,
-        use_trigger_audio: bool = True,
-        use_trigger_camera: bool = True,
-        always_on: bool = False,
+        use_vhf: Union[bool, str] = True,
+        use_audio: Union[bool, str] = True,
+        use_camera: Union[bool, str] = True,
+        use_trigger_vhf: Union[bool, str] = True,
+        use_trigger_audio: Union[bool, str] = True,
+        use_trigger_camera: Union[bool, str] = True,
+        always_on: Union[bool, str] = False,
         **kwargs,
     ):
         super().__init__()
@@ -52,13 +52,13 @@ class BatRack(threading.Thread):
         self._units: List[AbstractAnalysisUnit] = []
 
         # convert boolean config variables
-        use_vhf: bool = strtobool(use_vhf) if isinstance(use_vhf, str) else bool(use_vhf)
-        use_audio: bool = strtobool(use_audio) if isinstance(use_audio, str) else bool(use_audio)
-        use_camera: bool = strtobool(use_camera) if isinstance(use_camera, str) else bool(use_camera)
+        use_vhf = strtobool(use_vhf) if isinstance(use_vhf, str) else bool(use_vhf)
+        use_audio = strtobool(use_audio) if isinstance(use_audio, str) else bool(use_audio)
+        use_camera = strtobool(use_camera) if isinstance(use_camera, str) else bool(use_camera)
 
-        use_trigger_vhf: bool = strtobool(use_trigger_vhf) if isinstance(use_trigger_vhf, str) else bool(use_trigger_vhf)
-        use_trigger_audio: bool = strtobool(use_trigger_audio) if isinstance(use_trigger_audio, str) else bool(use_trigger_audio)
-        use_trigger_camera: bool = strtobool(use_trigger_camera) if isinstance(use_trigger_camera, str) else bool(use_trigger_camera)
+        use_trigger_vhf = strtobool(use_trigger_vhf) if isinstance(use_trigger_vhf, str) else bool(use_trigger_vhf)
+        use_trigger_audio = strtobool(use_trigger_audio) if isinstance(use_trigger_audio, str) else bool(use_trigger_audio)
+        use_trigger_camera = strtobool(use_trigger_camera) if isinstance(use_trigger_camera, str) else bool(use_trigger_camera)
 
         self.always_on: bool = strtobool(always_on) if isinstance(always_on, str) else bool(always_on)
 
