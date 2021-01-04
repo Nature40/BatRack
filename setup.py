@@ -6,8 +6,8 @@ with open('Readme.md') as f:
 with open('requirements.txt') as f:
     requirements = f.read().splitlines()
 
-# with open('LICENSE') as f:
-#     license = f.read()
+with open('LICENSE') as f:
+    license = f.read()
 
 setup(
     name='batrack',
@@ -18,6 +18,6 @@ setup(
     author_email='lampep@mathematik.uni-marburg.de, hoechst@mathematik.uni-marburg.de',
     url='https://github.com/Nature40/BatRack/',
     install_requires=requirements,
-    # license=license,
+    license=license,
     packages=find_packages(exclude=('tests', 'docs', 'etc')),
 )
