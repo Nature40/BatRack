@@ -5,13 +5,22 @@
 
       figure {
         display: inline-block;
-        margin: 100 100 0 0;
+        margin: 0 0 0 0;
         width: 70%;
       }
 
-      img {
+      .big{
+        width: 100%;
+      }
+    
+      .medium{
         width: 70%;
       }
+
+      .small{
+        width: 40%;
+      }
+
     </style>
   </head>
 </html>
@@ -26,7 +35,7 @@ The different sensors are able to fill in information gaps of the other sensor.
 This page is intended to provide an in-depth overview of the functionality of the BatRack and to enable a replication.
 For a detailed description of the possible applications and an assessment of the performance of the trigger approach see the corresponding publication.
 
-<img src="img/batrack-city.jpg" class="img-zoomable" alt="Photograph of a BatRack running a recording at night."/>
+<img src="img/batrack-city.jpg" class="img-zoomable big" alt="Photograph of a BatRack running a recording at night."/>
 
 ### Examples:
 
@@ -47,7 +56,7 @@ An example spectrogram of bat calls recorded by BatRack.
 The possibility to time match both video and audio, BatRack can capture the matching sound for behaviour identified by the video recording.batrack
 All this data is collected in the normal environment of the bats and so is an optimal source for machine learning approaches.
 
-<img src="img/bat_calls.jpeg" class="img-zoomable" alt="Spectrogram of a bat call recorded by BatRack"/>
+<img src="img/bat_calls.jpeg" class="img-zoomable medium" alt="Spectrogram of a bat call recorded by BatRack"/>
 
 The animation illustrates the principle of individual recognition using VHF.
 For this purpose the VHF signals recorded by the radio tracking unit were matched with the frames of the video (red dot in the graphic).
@@ -125,103 +134,103 @@ The first thing to start with is the main case of BatRack.
 Here, holes are drilled for all required feed-throughs and the components are inserted.
 On the left short side both power and the HDMI signal is carried out.
 
-<img src="img/batrack-power-hdmi.jpeg" class="img-zoomable" alt="BatRack - the hdmi and power feed-through"/>
+<img src="img/batrack-power-hdmi.jpeg" class="img-zoomable small" alt="BatRack - the hdmi and power feed-through"/>
 
 -----
 
 On the opposite side the feed-through for the antenna cable as well as the connection to the IR spotlight is created and the spotlight is screwed directly to the case.
 
-<img src="img/batrack-vhf-ir-holes.jpeg" class="img-zoomable" alt="BatRack - holes for vhf cable and ir spotlight"/>
+<img src="img/batrack-vhf-ir-holes.jpeg" class="img-zoomable small" alt="BatRack - holes for vhf cable and ir spotlight"/>
 
 -----
 
 On the top side of the case, two holes are drilled for the attachment to the tripod and two screws are attached.
 
-<img src="img/batrack-mount.jpeg" class="img-zoomable" alt="BatRack - mountpoints for BatRack"/>
+<img src="img/batrack-mount.jpeg" class="img-zoomable small" alt="BatRack - mountpoints for BatRack"/>
 
 -----
 
 The construction of the interior can now be continued with the cabling.
 For this, power must be drawn from the outside to the 12V distribution and at the same time made available to the IR spotlight via the relay.
 
-<img src="img/batrack-wiring.jpeg" class="img-zoomable" alt="BatRack - the wiring of the BatRack main box"/>
+<img src="img/batrack-wiring.jpeg" class="img-zoomable small" alt="BatRack - the wiring of the BatRack main box"/>
 
 -----
 
 In addition, the relay is connected to the Pi, the concrete wiring can be read in the following picture.
 
-<img src="img/batrack-pin-out-relay.jpeg" class="img-zoomable" alt="BatRack - pin out relay"/>
+<img src="img/batrack-pin-out-relay.jpeg" class="img-zoomable small" alt="BatRack - pin out relay"/>
 
 -----
 
 Now the 12V to 5V adaption can be installed and the connection of the Pi can be done.
 
-<img src="img/batrack-inside-power.jpeg" class="img-zoomable" alt="BatRack - 5V power connection"/>
+<img src="img/batrack-inside-power.jpeg" class="img-zoomable small" alt="BatRack - 5V power connection"/>
 
 -----
 
 Finally SDR stick, LTE stick and the ultrasonic microphone are connected via USB.
 
-<img src="img/batrack-sdr-lte.jpeg" class="img-zoomable" alt="BatRack - install LTE stick and SDR stick"/>
+<img src="img/batrack-sdr-lte.jpeg" class="img-zoomable small" alt="BatRack - install LTE stick and SDR stick"/>
 
 -----
 
 The whole setup of the main box can be seen in the following picture.
 
-<img src="img/batrack-main-box-final.jpeg" class="img-zoomable" alt="BatRack - Main box final view"/>
+<img src="img/batrack-main-box-final.jpeg" class="img-zoomable small" alt="BatRack - Main box final view"/>
 
 ### Step 2 - Camera case:
 
 The first thing to do is to drill the holes for the camera, the HDMI feed-through and the attachment to the ir headlight.
 Then the camera can be inserted and screwed to the housing.
 
-<img src="img/batrack-camera-housing.jpeg" class="img-zoomable" alt="BatRack - install the camera in the box"/>
+<img src="img/batrack-camera-housing.jpeg" class="img-zoomable  small" alt="BatRack - install the camera in the box"/>
 
 -----
 
 When this is done, the feed-through for the HDMI signal should be attached.
 
-<img src="img/batrack-hdmi-feed-through.jpeg" class="img-zoomable" alt="BatRack - Attach HDMI feed-through"/>
+<img src="img/batrack-hdmi-feed-through.jpeg" class="img-zoomable small" alt="BatRack - Attach HDMI feed-through"/>
 
 -----
 
 The inside of the box now looks like this.
 
-<img src="img/batrack-camera-box-inside.jpeg" class="img-zoomable" alt="BatRack - inside of the camera box"/>
+<img src="img/batrack-camera-box-inside.jpeg" class="img-zoomable small" alt="BatRack - inside of the camera box"/>
 
 -----
 
 The camera should be shielded with a vhf fleece.
 Especially the high quality camera s produces vhf noise, if the NoIR camera is used this step can be skipped.
 
-<img src="img/batrack-vhf-fleece.jpeg" class="img-zoomable" alt="BatRack - camera is shielded with vhf fleece"/>
+<img src="img/batrack-vhf-fleece.jpeg" class="img-zoomable small" alt="BatRack - camera is shielded with vhf fleece"/>
 
 -----
 
 The camera box, now ready for use, can be attached to the IR spotlight with two screws.
 
-<img src="img/batrack-camera-to-ir.jpeg" class="img-zoomable" alt="BatRack - attach camera box to ir spotlight"/>
+<img src="img/batrack-camera-to-ir.jpeg" class="img-zoomable small" alt="BatRack - attach camera box to ir spotlight"/>
 
 -----
 
 The result then looks like this.
 The camera holds to the housing without any other tools and the HDMI connection to the main box is waterproof.
 
-<img src="img/batrack-camera-box-final.jpeg" class="img-zoomable" alt="BatRack - final camera box"/>
+<img src="img/batrack-camera-box-final.jpeg" class="img-zoomable small" alt="BatRack - final camera box"/>
 
 ### Step 3 - Deployment:
 
 The last step is inserting a sd card with an flashed image from [BatRack image page](https://github.com/Nature40/Sensorboxes-Images/releases/tag/batrack-0.1) and deploy BatRack in the field.
 
-<img src="img/batrack-deployment.jpeg" class="img-zoomable" alt="BatRack deployed in the wild"/>
+<img src="img/batrack-deployment.jpeg" class="img-zoomable small" alt="BatRack deployed in the wild"/>
 
 -----
 
 You can also watch the live video stream over wifi from any mobile end device.
 
-<img src="img/batrack-liveview.jpeg" class="img-zoomable" alt="Live view over wifi from the BatRack video stream"/>
+<img src="img/batrack-liveview.jpeg" class="img-zoomable small" alt="Live view over wifi from the BatRack video stream"/>
 
-<img src="img/batrack-night-view.jpeg" class="img-zoomable" alt="Night view over wifi from the BatRack video stream"/>
+<img src="img/batrack-night-view.jpeg" class="img-zoomable small" alt="Night view over wifi from the BatRack video stream"/>
 
 ## Flowchart
 
@@ -229,7 +238,7 @@ The following flowchart illustrates the program flow of the audio and vhf unit.
 Here the individual decisions are shown as well as the influence of configuration options on the behavior of the algorithm.
 This also shows that the flexible configuration options make it possible to adapt BatRack to a wide range of applications.
 
-<img src="img/flowchart.png" class="img-zoomable" alt="Flowchart of audio and video unit"/>
+<img src="img/flowchart.png" class="img-zoomable big" alt="Flowchart of audio and video unit"/>
 
 ## Configuring BatRack
 
