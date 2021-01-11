@@ -1,3 +1,21 @@
+<html>
+  <head>
+    <meta charset="utf-8">
+    <style>
+
+      figure {
+        display: inline-block;
+        margin: 100 100 0 0;
+        width: 70%;
+      }
+
+      img {
+        width: 70%;
+      }
+    </style>
+  </head>
+</html>
+
 # BatRack in a nutshell 
 
 The BatRack is an open-source multi-sensor tool consisting of an audio sensor, a camera unit and an automatic radio tracking unit (Gottwald et al 2019).
@@ -8,7 +26,7 @@ The different sensors are able to fill in information gaps of the other sensor.
 This page is intended to provide an in-depth overview of the functionality of the BatRack and to enable a replication.
 For a detailed description of the possible applications and an assessment of the performance of the trigger approach see the corresponding publication.
 
-![Photograph of a BatRack running a recording at night.](img/batrack-city.jpg)
+<img src="img/batrack-city.jpg" class="img-zoomable" alt="Photograph of a BatRack running a recording at night."/>
 
 ### Examples:
 
@@ -29,7 +47,7 @@ An example spectrogram of bat calls recorded by BatRack.
 The possibility to time match both video and audio, BatRack can capture the matching sound for behaviour identified by the video recording.batrack
 All this data is collected in the normal environment of the bats and so is an optimal source for machine learning approaches.
 
-![Spectrogram of a bat call recorded by BatRack](img/bat_calls.jpeg)
+<img src="img/bat_calls.jpeg" class="img-zoomable" alt="Spectrogram of a bat call recorded by BatRack"/>
 
 The animation illustrates the principle of individual recognition using VHF.
 For this purpose the VHF signals recorded by the radio tracking unit were matched with the frames of the video (red dot in the graphic).
@@ -59,45 +77,45 @@ For the products not explicitly mentioned, we either have no specific recommenda
 
 An overview of the overall design of BatRack is illustrated in the following graphic.
 
-![Schematics of BatRack.](img/BatRackSchematic.png)
+<img src="img/BatRackSchematic.png" class="img-zoomable" alt="Schematics of BatRack."/>
 
-| Position                  | Count | Part in graphic | Price per unit | Price summed up | Product name                                      |
-|---------------------------|-------|-----------------|----------------|-----------------|---------------------------------------------------|
-| raspberry pi              |     1 | A               |        40,00 € |         40,00 € | Raspberry Pi 3 b+                                 |
-| case (big)                |     1 |                 |        20,00 € |         20,00 € | Spelsberg TK PS 2518-11-o                         |
-| case (small)              |     1 |                 |        25,00 € |         15,00 € | Spelsberg TG PC 1208-9-o                          |
-| ultrasonic microphone     |     1 | F               |       250,00 € |        250,00 € | Ultramic UM250K                                   |
-| hq camera                 |     1 | H               |        55,00 € |         55,00 € | Raspberry Pi High Quality Camera                  |
-| camera lens               |     1 | H               |        25,00 € |         25,00 € | 6mm lens for Raspberry Pi HQ camera module        |
-| relay                     |     1 | E               |         1,40 € |          1,40 € | KY-019 5 V One Channel Relay                      |
-| ir led                    |     1 | G               |        70,00 € |         70,00 € |                                                   |
-| csi hdmi adapter          |     1 | L               |         9,00 € |          9,00 € | Arducam CSI to HDMI cable                         |
-| hdmi feedthrough          |     2 | L               |        12,00 € |         24,00 € | Neutrik NAHDMI-W-B                                |
-| hdmi cable outdoor        |     1 |                 |        39,00 € |         39,00 € | Neutrik NKHDMI-3                                  |
-| hdmi cable short          |     2 | L               |         3,00 € |          4,00 € | DeLock Adaptor HDMI-A Male to A Male              |
-| sdr stick                 |     1 | B               |        40,00 € |         40,00 € | Nooelec NESDR SMArt v4 SDR                        |
-| vhf antenna               |     1 | I               |        50,00 € |         50,00 € |                                                   |
-| vhf cable                 |     1 |                 |        15,00 € |         15,00 € |                                                   |
-| sma adapter               |     1 |                 |         3,20 € |          3,20 € | Blueberry Each® Coaxial Adaptor                   |
-| 12v cigarette lighter     |     1 | D               |         7,00 € |          7,00 € | Carpoint 0523484 Waterproof Buillt-Up Socket 12 V |
-| 12v -> 5v adapter         |     1 | D               |         7,00 € |          7,00 € | RAVPower 24 W 4.8 A Dual USB Mini Car Charger     |
-| 3D printed mounting plate |     1 |                 |         3,00 € |          3,00 € |                                                   |
-| feedthrough led           |     1 |                 |         0,50 € |          0,50 € |                                                   |
-| moun microphone           |     1 |                 |         1,50 € |          1,50 € | JSM32KVS-S Cable Connectors M32                   |
-| usb a -> mirco usb cable  |     1 |                 |           1,25 |          1,25 € |                                                   |
-| lte stick                 |     1 |                 |        45,00 € |         45,00 € | Huawei Surfstick, E3372H-320 LTE                  |
-| Subtotal                  |       |                 |                |        737,85 € |                                                   |
-| tripod mount              |     1 |                 |        80,00 € |         80,00 € | Gravity GLSTBTV28                                 |
-| wam bam box               |     1 |                 |        30,00 € |         30,00 € |                                                   |
-| solar charger             |     1 |                 |        20,00 € |         20,00 € |                                                   |
-| battery                   |     1 | J               |       150,00 € |        150,00 € |                                                   |
-| fuse                      |     1 |                 |        10,00 € |         10,00 € |                                                   |
-| power cable               |     1 |                 |         5,00 € |          5,00 € |                                                   |
-| power plug male           |     1 |                 |        12,00 € |         12,00 € | Neutrik                                                  |
-| power plug female         |     1 |                 |        12,00 € |         12,00 € | Neutrik                                                  |
-| solar panel               |     1 | K               |       165,00 € |        165,00 € |                                                   |
-|                           |       |                 |                |                 |                                                   |
-| Total                     |       |                 |                |      1.947,70 € |                                                   |
+| Position                  | Count | Part list item | Price per unit | Price summed up | Product name                                      |
+|---------------------------|-------|----------------|----------------|-----------------|---------------------------------------------------|
+| raspberry Pi              |     1 | A              |        40,00 € |         40,00 € | Raspberry pi 3 b+                                 |
+| case (big)                |     1 |                |        20,00 € |         20,00 € | Spelsberg TK PS 2518-11-o                         |
+| case (small)              |     1 |                |        25,00 € |         25,00 € | Spelsberg TG PC 1208-9-o                          |
+| ultrasonic microphone     |     1 | F              |       250,00 € |        250,00 € | Ultramic UM250K                                   |
+| hq camera                 |     1 | H              |        55,00 € |         55,00 € | Raspberry Pi High Quality Camera                  |
+| camera lens               |     1 | H              |        25,00 € |         25,00 € | 6mm lens for Raspberry Pi HQ camera module        |
+| relay                     |     1 | E              |         1,40 € |          1,40 € | KY-019 5 V One Channel Relay                      |
+| ir led                    |     1 | G              |        70,00 € |         70,00 € |                                                   |
+| csi hdmi adapter          |     1 | L              |         9,00 € |          9,00 € | Arducam CSI to HDMI cable                         |
+| hdmi feedthrough          |     2 | L              |        12,00 € |         24,00 € | Neutrik NAHDMI-W-B                                |
+| hdmi cabel outdoor        |     1 |                |        39,00 € |         39,00 € | Neutrik NKHDMI-3                                  |
+| hdmi cable short          |     2 | L              |         3,00 € |          6,00 € | DeLock Adaptor HDMI-A Male to A Male              |
+| sdr stick                 |     1 | B              |        40,00 € |         40,00 € | Nooelec NESDR SMArt v4 SDR                        |
+| vhf antenna               |     1 | I              |        50,00 € |         50,00 € |                                                   |
+| vhf cable                 |     1 |                |        15,00 € |         15,00 € |                                                   |
+| sma adapter               |     1 |                |         3,20 € |          3,20 € | Blueberry Each® Coaxial Adaptor                   |
+| 12v cigarette lighter     |     1 | D              |         7,00 € |          7,00 € | Carpoint 0523484 Waterproof Buillt-Up Socket 12 V |
+| 12v -> 5v adapter         |     1 | D              |         7,00 € |          7,00 € | RAVPower 24 W 4.8 A Dual USB Mini Car Charger     |
+| power plug male           |     1 |                |        12,00 € |         12,00 € | Neutrik                                           |
+| 3D printed mounting plate |     1 |                |         3,00 € |          3,00 € |                                                   |
+| feedthrough led           |     1 |                |         0,50 € |          0,50 € |                                                   |
+| moun microphone           |     1 |                |         1,50 € |          1,50 € | JSM32KVS-S Cable Connectors M32                   |
+| usb a -> mirco usb cable  |     1 |                |           1,25 |            1,25 |                                                   |
+| lte stick                 |     1 |                |        45,00 € |         45,00 € | Huawei Surfstick, E3372H-320 LTE                  |
+| Subtotal                  |       |                |                |        749,85 € |                                                   |
+| tripod mount              |     1 |                |        80,00 € |         80,00 € | Gravity GLSTBTV28                                 |
+| wam bam box               |     1 |                |        30,00 € |         30,00 € |                                                   |
+| solar charger             |     1 |                |        20,00 € |         20,00 € |                                                   |
+| battery                   |     1 | J              |       150,00 € |        150,00 € |                                                   |
+| fuse                      |     1 |                |        10,00 € |         10,00 € |                                                   |
+| power cable               |     1 |                |         5,00 € |          5,00 € |                                                   |
+| Power plug female         |     1 |                |        12,00 € |         12,00 € | Neutrik                                           |
+| solar panel               |     1 | K              |       165,00 € |        165,00 € |                                                   |
+|                           |       |                |                |                 |                                                   |
+| Total                     |       |                |                |      1.221,85 € |                                                   |
 
 ## Instruction of building a BatRack prototype
 
@@ -107,103 +125,103 @@ The first thing to start with is the main case of BatRack.
 Here, holes are drilled for all required feed-throughs and the components are inserted.
 On the left short side both power and the HDMI signal is carried out.
 
-![BatRack - the hdmi and power feed-through](img/batrack-power-hdmi.jpeg)
+<img src="img/batrack-power-hdmi.jpeg" class="img-zoomable" alt="BatRack - the hdmi and power feed-through"/>
 
 -----
 
 On the opposite side the feed-through for the antenna cable as well as the connection to the IR spotlight is created and the spotlight is screwed directly to the case.
 
-![BatRack - holes for vhf cable and ir spotlight](img/batrack-vhf-ir-holes.jpeg)
+<img src="img/batrack-vhf-ir-holes.jpeg" class="img-zoomable" alt="BatRack - holes for vhf cable and ir spotlight"/>
 
 -----
 
 On the top side of the case, two holes are drilled for the attachment to the tripod and two screws are attached.
 
-![BatRack - mountpoints for BatRack](img/batrack-mount.jpeg)
+<img src="img/batrack-mount.jpeg" class="img-zoomable" alt="BatRack - mountpoints for BatRack"/>
 
 -----
 
 The construction of the interior can now be continued with the cabling.
 For this, power must be drawn from the outside to the 12V distribution and at the same time made available to the IR spotlight via the relay.
 
-![BatRack - the wiring of the BatRack main box](img/batrack-wiring.jpeg)
+<img src="img/batrack-wiring.jpeg" class="img-zoomable" alt="BatRack - the wiring of the BatRack main box"/>
 
 -----
 
 In addition, the relay is connected to the Pi, the concrete wiring can be read in the following picture.
 
-![BatRack - pin out relay](img/batrack-pin-out-relay.jpeg)
+<img src="img/batrack-pin-out-relay.jpeg" class="img-zoomable" alt="BatRack - pin out relay"/>
 
 -----
 
 Now the 12V to 5V adaption can be installed and the connection of the Pi can be done.
 
-![BatRack - 5V power connection](img/batrack-inside-power.jpeg)
+<img src="img/batrack-inside-power.jpeg" class="img-zoomable" alt="BatRack - 5V power connection"/>
 
 -----
 
 Finally SDR stick, LTE stick and the ultrasonic microphone are connected via USB.
 
-![BatRack - install LTE stick and SDR stick](img/batrack-sdr-lte.jpeg)
+<img src="img/batrack-sdr-lte.jpeg" class="img-zoomable" alt="BatRack - install LTE stick and SDR stick"/>
 
 -----
 
 The whole setup of the main box can be seen in the following picture.
 
-![BatRack - Main box final view](img/batrack-main-box-final.jpeg)
+<img src="img/batrack-main-box-final.jpeg" class="img-zoomable" alt="BatRack - Main box final view"/>
 
 ### Step 2 - Camera case:
 
 The first thing to do is to drill the holes for the camera, the HDMI feed-through and the attachment to the ir headlight.
 Then the camera can be inserted and screwed to the housing.
 
-![BatRack - install the camera in the box](img/batrack-camera-housing.jpeg)
+<img src="img/batrack-camera-housing.jpeg" class="img-zoomable" alt="BatRack - install the camera in the box"/>
 
 -----
 
 When this is done, the feed-through for the HDMI signal should be attached.
 
-![BatRack - Attach HDMI feed-through](img/batrack-hdmi-feed-through.jpeg)
+<img src="img/batrack-hdmi-feed-through.jpeg" class="img-zoomable" alt="BatRack - Attach HDMI feed-through"/>
 
 -----
 
 The inside of the box now looks like this.
 
-![BatRack - inside of the camera box](img/batrack-camera-box-inside.jpeg)
+<img src="img/batrack-camera-box-inside.jpeg" class="img-zoomable" alt="BatRack - inside of the camera box"/>
 
 -----
 
 The camera should be shielded with a vhf fleece.
 Especially the high quality camera s produces vhf noise, if the NoIR camera is used this step can be skipped.
 
-![BatRack - camera is shielded with vhf fleece](img/batrack-vhf-fleece.jpeg)
+<img src="img/batrack-vhf-fleece.jpeg" class="img-zoomable" alt="BatRack - camera is shielded with vhf fleece"/>
 
 -----
 
 The camera box, now ready for use, can be attached to the IR spotlight with two screws.
 
-![BatRack - attach camera box to ir spotlight](img/batrack-camera-to-ir.jpeg)
+<img src="img/batrack-camera-to-ir.jpeg" class="img-zoomable" alt="BatRack - attach camera box to ir spotlight"/>
 
 -----
 
 The result then looks like this.
 The camera holds to the housing without any other tools and the HDMI connection to the main box is waterproof.
 
-![BatRack - final camera box](img/batrack-camera-box-final.jpeg)
+<img src="img/batrack-camera-box-final.jpeg" class="img-zoomable" alt="BatRack - final camera box"/>
 
 ### Step 3 - Deployment:
 
 The last step is inserting a sd card with an flashed image from [BatRack image page](https://github.com/Nature40/Sensorboxes-Images/releases/tag/batrack-0.1) and deploy BatRack in the field.
 
-![BatRack deployed in the wild](img/batrack-deployment.jpeg)
+<img src="img/batrack-deployment.jpeg" class="img-zoomable" alt="BatRack deployed in the wild"/>
 
 -----
 
 You can also watch the live video stream over wifi from any mobile end device.
 
-![Live view over wifi from the BatRack video stream](img/batrack-liveview.jpeg)
+<img src="img/batrack-liveview.jpeg" class="img-zoomable" alt="Live view over wifi from the BatRack video stream"/>
 
-![Night view over wifi from the BatRack video stream](img/batrack-night-view.jpeg)
+<img src="img/batrack-night-view.jpeg" class="img-zoomable" alt="Night view over wifi from the BatRack video stream"/>
 
 ## Flowchart
 
@@ -211,7 +229,7 @@ The following flowchart illustrates the program flow of the audio and vhf unit.
 Here the individual decisions are shown as well as the influence of configuration options on the behavior of the algorithm.
 This also shows that the flexible configuration options make it possible to adapt BatRack to a wide range of applications.
 
-![Flowchart of audio and video unit](img/flowchart.png)
+<img src="img/flowchart.png" class="img-zoomable" alt="Flowchart of audio and video unit"/>
 
 ## Configuring BatRack
 
@@ -327,3 +345,14 @@ python3 -m pip install .
 ## Software
 
 The software can be found at: https://github.com/Nature40/BatRack and the final image at: published_later 
+
+
+<script src="https://unpkg.com/zooming/build/zooming.min.js"></script>
+<script>
+      // Listen to images after DOM content is fully loaded
+      document.addEventListener('DOMContentLoaded', function () {
+        new Zooming({
+          // options...
+        }).listen('.img-zoomable')
+      })
+</script>
