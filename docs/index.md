@@ -90,7 +90,7 @@ An overview of the overall design of BatRack is illustrated in the following gra
 
 | Position                  | Count | Part list item | Price per unit | Price summed up | Product name                                      |
 |---------------------------|-------|----------------|----------------|-----------------|---------------------------------------------------|
-| raspberry Pi              |     1 | A              |        40,00 € |         40,00 € | Raspberry pi 3 b+                                 |
+| raspberry Pi              |     1 | A              |        40,00 € |         40,00 € | Raspberry pi 3 b                                  |
 | case (big)                |     1 |                |        20,00 € |         20,00 € | Spelsberg TK PS 2518-11-o                         |
 | case (small)              |     1 |                |        25,00 € |         25,00 € | Spelsberg TG PC 1208-9-o                          |
 | ultrasonic microphone     |     1 | F              |       250,00 € |        250,00 € | Ultramic UM250K                                   |
