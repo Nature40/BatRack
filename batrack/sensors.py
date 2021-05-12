@@ -5,13 +5,18 @@ import os
 import threading
 import time
 import wave
+import platform
 from distutils.util import strtobool
 from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import gpiozero
-import mysql.connector as mariadb
+import cbor2 as cbor
+import paho.mqtt.client as mqtt
 import numpy as np
 import pyaudio
+
+from radiotracking import MatchedSignal
+from radiotracking.consume import uncborify
 
 logger = logging.getLogger(__name__)
 
@@ -346,37 +351,30 @@ class AudioAnalysisUnit(AbstractAnalysisUnit):
 class VHFAnalysisUnit(AbstractAnalysisUnit):
     def __init__(
         self,
-        freq_center_hz: int,
         freq_bw_hz: int,
         sig_freqs_mhz: List[float],
-        sig_threshold_dbm: float,
+        sig_threshold_dbw: float,
         sig_duration_threshold_s: float,
-        sig_poll_interval_s: float,
         freq_active_window_s: float,
         freq_active_var: float,
         freq_active_count: int,
         untrigger_duration_s: float,
-        db_user: str = "pi",
-        db_password: str = "natur",
-        db_database: str = "rteu",
+        mqtt_host: str = "localhost",
+        mqtt_port: int = 1883,
+        mqtt_keepalive: int = 60,
         **kwargs,
     ):
         """[summary]
 
         Args:
-            freq_center_hz (int): center frequency of signal_detect, used to compute absolute frequencies from database entries
             freq_bw_hz (int): bandwidth used by a sender, required to match received signals to defined frequencies
             sig_freqs_mhz (List[float]): list of frequencies to monitor
-            sig_threshold_dbm (float): power threshold for received signals
+            sig_threshold_dbw (float): power threshold for received signals
             sig_duration_threshold_s (float): duration threshold for received signals
-            sig_poll_interval_s (float): interval in which the database is polled for new signals
             freq_active_window_s (float): duration of window used for active / passive freq classification
             freq_active_var (float): threshold, after which a frequency is classified active
             freq_active_count (int): required number of signals in a frequencyy for classifaciton
             untrigger_duration_s (float): duration for which a trigger will stay active
-            db_user (str, optional): local mariadb username. Defaults to "pi".
-            db_password (str, optional): local mariadb password. Defaults to "natur".
-            db_database (str, optional): local mariadb database name. Defaults to "rteu".
 
         Raises:
             ValueError: format of an argument is not valid.
@@ -384,7 +382,6 @@ class VHFAnalysisUnit(AbstractAnalysisUnit):
         super().__init__(**kwargs)
 
         # base system values
-        self.freq_center_hz: int = int(freq_center_hz)
         self.freq_bw_hz: int = int(freq_bw_hz)
 
         # signal-specific configuration and thresholds
@@ -398,16 +395,15 @@ class VHFAnalysisUnit(AbstractAnalysisUnit):
         # freqs_bins to contain old signal values for variance calc
         self._freqs_bins: Dict[float, Tuple[float, float, List[Tuple[datetime.datetime, float]]]] = {}
         for freq_mhz in sig_freqs_mhz:
-            freq_rel = int(freq_mhz * 1000 * 1000) - self.freq_center_hz
+            freq_rel = int(freq_mhz * 1000 * 1000)
             lower = freq_rel - (self.freq_bw_hz / 2)
             upper = freq_rel + (self.freq_bw_hz / 2)
 
             self._freqs_bins[freq_mhz] = (lower, upper, [])
 
-        self.sig_threshold_dbm = float(sig_threshold_dbm)
+        self.sig_threshold_dbw = float(sig_threshold_dbw)
         # TODO: Signal duration threshold is not yet used
         self.sig_duration_threshold_s = float(sig_duration_threshold_s)
-        self.sig_poll_interval_s = float(sig_poll_interval_s)
 
         self.freq_active_window_s = float(freq_active_window_s)
         self.freq_active_var = float(freq_active_var)
@@ -415,18 +411,13 @@ class VHFAnalysisUnit(AbstractAnalysisUnit):
 
         self.untrigger_duration_s = float(untrigger_duration_s)
 
-        # database connection
-        self.db_user = str(db_user)
-        self.db_password = str(db_password)
-        self.db_database = str(db_database)
+        # create client object and set callback methods
+        self.mqtt_host = str(mqtt_host)
+        self.mqtt_port = int(mqtt_port)
+        self.mqtt_keepalive = int(mqtt_keepalive)
+        self.mqttc = mqtt.Client(client_id=f"{platform.node()}-BatRack", clean_session=False, userdata=self)
 
-        # create db connection to validate access
-        self.__db = mariadb.connect(
-            user=self.db_user,
-            password=self.db_password,
-            database=self.db_database,
-            autocommit=True,
-        )
+        self.untrigger_ts = time.time()
 
     def start_recording(self):
         # the vhf sensor is recording continuously
@@ -436,83 +427,92 @@ class VHFAnalysisUnit(AbstractAnalysisUnit):
         # the vhf sensor is recording continuously
         pass
 
-    def run(self):
-        self._running = True
+    @staticmethod
+    def on_matched_cbor(client: mqtt.Client, self, message):
+        # extract payload and meta data
+        matched_list = cbor.loads(message.payload, tag_hook=uncborify)
+        station, _, _, _ = message.topic.split("/")
 
-        # setup db cursor and get initial signal retrieval pointer
-        cursor = self.__db.cursor()
-        cursor.execute("SET time_zone='+00:00';")
-        cursor.execute("SELECT id, timestamp FROM signals ORDER BY id DESC LIMIT 1;")
-        db_id, db_ts = cursor.fetchone()
-        logger.info(f"Reading signals of database, starting with id:{db_id}, datetime: {db_ts}")
+        msig = MatchedSignal(["0"], *matched_list)
+        logging.info(f"Received {msig}")
 
         # helper method to retrieve the signal list
-        def get_freqs_list(freq_rel: int) -> Tuple[Optional[float], Optional[List[Tuple[datetime.datetime, float]]]]:
+        def get_freqs_list(freq: int) -> Tuple[Optional[float], List[Tuple[datetime.datetime, float]]]:
             for mhz, (lower, upper, sigs) in self._freqs_bins.items():
-                if freq_rel > lower and freq_rel < upper:
+                if freq > lower and freq < upper:
                     return (mhz, sigs)
 
-            return (None, None)
+            return (None, [])
 
-        untrigger_ts = 0
+        previous_absent: bool = False
+        frequency_mhz, sigs = get_freqs_list(msig.frequency)
 
-        # query to get the latest signal entries
-        query = "SELECT id, timestamp, signal_freq, max_signal " + "FROM signals WHERE " + "id > %s;"
+        if not frequency_mhz:
+            logger.debug(f"signal {msig.frequency/1000.0/1000.0:.3f} MHz: not in sig_freqs_mhz list, discarding")
+            return
+
+        # append current signal to the signal list of this freq
+        sigs.append((msig.ts, msig._avgs[0]))
+
+        # discard signals below threshold
+        if msig._avgs[0] < self.sig_threshold_dbw:
+            logger.debug(f"signal {frequency_mhz:.3f} MHz, {msig._avgs[0]:.3f} dBW: too weak, discarding")
+            return
+
+        # cleanup current signal list (discard older signals)
+        sig_start = msig.ts - datetime.timedelta(seconds=self.freq_active_window_s)
+        sigs[:] = [sig for sig in sigs if sig[0] > sig_start]
+
+        # check if bats was absent before
+        count = len(sigs)
+        if count < self.freq_active_count:
+            previous_absent = True
+            logger.debug(f"signal {frequency_mhz:.3f} MHz, {msig._avgs[0]:.3f} dBW: one of the first signals => match")
+
+        # check if bat is active
+        if not previous_absent:
+            var = np.std([sig[1] for sig in sigs])
+            if var < self.freq_active_var:
+                logger.debug(f"signal {frequency_mhz:.3f} MHz, {msig._avgs[0]:.3f} dBW: frequency variance low ({var}), discarding")
+                return
+            else:
+                logger.debug(f"signal: {frequency_mhz:.3f} MHz, {msig._avgs[0]:.3f} dBW: met all conditions (sig_count: {count}, sig_var: {var:.3f})")
+
+        # set untrigger time if all criterions are met
+        # TODO: set this from db_ts, instead of local time
+        # this could lead to decreasing of untrigger_ts, which could be avoided by calling max(untrigger_ts_old, ..._new)
+        # if this is correct the 'sigs[:] = [sig for sig in sigs if sig[0] > sig_start]' statement should also be incorrect in some cases
+        self.untrigger_ts = time.time() + self.untrigger_duration_s
+        self._set_trigger(True, f"vhf, {frequency_mhz:.3f} MHz, {msig._avgs[0]:.3f} dBW, {count} sigs")
+
+    @staticmethod
+    def on_connect(mqttc: mqtt.Client, self, flags, rc):
+        logging.info(f"MQTT connection established ({rc})")
+
+        # subscribe to match signal cbor messages
+        topic_matched_cbor = "+/radiotracking/matched/cbor"
+        mqttc.subscribe(topic_matched_cbor)
+        mqttc.message_callback_add(topic_matched_cbor, self.on_matched_cbor)
+        logging.info(f"Subscribed to {topic_matched_cbor}")
+
+    def run(self):
+        self._running = True
+        self.mqttc.on_connect = self.on_connect
+
+        ret = self.mqttc.connect(self.mqtt_host, self.mqtt_port, self.mqtt_keepalive)
+        if ret != mqtt.MQTT_ERR_SUCCESS:
+            logging.critical(f"MQTT connetion failed: {ret}")
 
         while self._running:
-            # get and iterate latest detected signals
-            cursor.execute(query, (db_id,))
-
-            for db_id, db_ts, freq_rel, sig_strength in cursor.fetchall():
-                previous_absent: bool = False
-                frequency_mhz, sigs = get_freqs_list(freq_rel)
-
-                if not frequency_mhz:
-                    sig_freq_mhz = (freq_rel + self.freq_center_hz) / 1000.0 / 1000.0
-                    logger.debug(f"signal {sig_freq_mhz:.3f} MHz: not in sig_freqs_mhz list, discarding")
-                    continue
-
-                # append current signal to the signal list of this freq
-                sigs.append((db_ts, sig_strength))
-
-                # discard signals below threshold
-                if sig_strength < self.sig_threshold_dbm:
-                    logger.debug(f"signal {frequency_mhz:.3f} MHz, {sig_strength} dBm: too weak, discarding")
-                    continue
-
-                # cleanup current signal list (discard older signals)
-                sig_start = db_ts - datetime.timedelta(seconds=self.freq_active_window_s)
-                sigs[:] = [sig for sig in sigs if sig[0] > sig_start]
-
-                # check if bats was absent before
-                count = len(sigs)
-                if count < self.freq_active_count:
-                    previous_absent = True
-                    logger.debug(f"signal {frequency_mhz:.3f} MHz, {sig_strength} dBm: one of the first signals => match")
-
-                # check if bat is active
-                if not previous_absent:
-                    var = np.std([sig[1] for sig in sigs])
-                    if var < self.freq_active_var:
-                        logger.debug(f"signal {frequency_mhz:.3f} MHz, {sig_strength} dBm: frequency variance low ({var}), discarding")
-                        continue
-                    else:
-                        logger.debug(f"signal: {frequency_mhz:.3f} MHz, {sig_strength} dBm: met all conditions (sig_count: {count}, sig_var: {var}:.3f)")
-
-                # set untrigger time if all criterions are met
-                # TODO: set this from db_ts, instead of local time
-                # this could lead to decreasing of untrigger_ts, which could be avoided by calling max(untrigger_ts_old, ..._new)
-                # if this is correct the 'sigs[:] = [sig for sig in sigs if sig[0] > sig_start]' statement should also be incorrect in some cases
-                untrigger_ts = time.time() + self.untrigger_duration_s
-                self._set_trigger(True, f"vhf, {frequency_mhz:.3f} MHz, {sig_strength} dBm, {count} sigs")
-
-            # if untrigger time is over
-            if untrigger_ts < time.time():
+            self.mqttc.loop(0.1)
+            if self.untrigger_ts < time.time():
                 if self._trigger:
                     self._set_trigger(False, "vhf, timeout")
 
-            # higher sleep time decreases load, increases jitter / delay for new signals
-            time.sleep(self.sig_poll_interval_s)
+        self.mqttc.disconnect()
 
-        cursor.close()
-        self.__db.close()
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.DEBUG)
+    vhf = VHFAnalysisUnit(8000, [150.611], -80, 0.01, 60, 2, 10, 10, "localhost", 1883, 60, use_trigger=True, trigger_callback=lambda trg, msg: logger.debug(f"Trigger: {trg}, {msg}"))
+    vhf.run()

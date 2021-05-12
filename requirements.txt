@@ -1,6 +1,6 @@
 gpiozero
-mysql
-mysql-connector-python-rf
+paho-mqtt
+cbor2
 numpy
 numpy_ringbuffer
 pyaudio
