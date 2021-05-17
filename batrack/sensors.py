@@ -7,7 +7,8 @@ import time
 import wave
 import platform
 from distutils.util import strtobool
-from typing import Callable, Dict, List, Optional, Tuple, Union
+from typing import Callable, Dict, List, Optional, Tuple, Union, Optional
+from queue import Empty, Queue
 
 import gpiozero
 import cbor2 as cbor
@@ -176,13 +177,23 @@ class AudioAnalysisUnit(AbstractAnalysisUnit):
 
         self.__noise_blocks: int = 0
         self.__quiet_blocks: int = 0
-        self.__wave = None
+        self.__wavewriter: Optional[WaveWriter] = None
 
     def run(self):
         self._running = True
 
         # open input stream
         device_index = self.__find_input_device()
+
+        def callback(in_data, frame_count, time_info, status):
+            self.__analyse_frame(in_data)
+
+            # if a wave file is opened, write the frame to this file
+            if self.__wavewriter:
+                self.__wavewriter.q.put(in_data)
+
+            return (in_data, pyaudio.paContinue)
+
         stream = self.pa.open(
             input_device_index=device_index,
             format=pyaudio.paInt16,
@@ -190,20 +201,17 @@ class AudioAnalysisUnit(AbstractAnalysisUnit):
             rate=self.sampling_rate,
             input=True,
             frames_per_buffer=self.input_frames_per_block,
+            stream_callback=callback,
         )
 
-        while self._running:
-            frame = stream.read(self.input_frames_per_block, exception_on_overflow=False)
+        stream.start_stream()
 
-            self.__analyse_frame(frame)
-
-            # if a wave file is opened, write the frame to this file
-            if self.__wave:
-                self.__wave_write(frame)
+        while stream.is_active() and self._running:
+            time.sleep(0.1)
 
         # left while-loop, clean up
-        if self.__wave:
-            self.__wave_finalize()
+        if self.__wavewriter:
+            self.__wavewriter.stop()
 
         stream.stop_stream()
         stream.close()
@@ -212,13 +220,24 @@ class AudioAnalysisUnit(AbstractAnalysisUnit):
         logger.info(f"{self.__class__.__name__} termination finished")
 
     def start_recording(self):
-        self.__wave_initialize()
+        if not self.wave_export_len:
+            logger.info("Wave export length is zero, not creating wave file.")
+            return
+
+        if self.__wavewriter:
+            logger.warning("another wave is opened, not creating new file.")
+            return
+
+        self.__wavewriter = WaveWriter(self)
+        self.__wavewriter.start()
         self._recording = True
 
     def stop_recording(self):
         # TODO: isn't it enough to set self._reconging = False? In run()
         # __wave_finalize() is also called.
-        self.__wave_finalize()
+        if self.__wavewriter:
+            self.__wavewriter.stop()
+            self.__wavewriter = None
         self._recording = False
 
     def __find_input_device(self) -> Optional[int]:
@@ -237,39 +256,6 @@ class AudioAnalysisUnit(AbstractAnalysisUnit):
 
         logger.info("No preferred input found; using default input device.")
         return None
-
-    def __wave_initialize(self):
-        if self.__wave:
-            logger.warning("another wave is opened, not creating new file.")
-            return
-
-        start_time_str = datetime.datetime.now().strftime("%Y-%m-%dT%H_%M_%S")
-        file_path = os.path.join(self.data_path, start_time_str + ".wav")
-
-        logger.info(f"creating wav file '{file_path}'")
-        self.__wave = wave.open(file_path, "wb")
-        self.__wave.setnchannels(1)
-        self.__wave.setsampwidth(self.pa.get_sample_size(pyaudio.paInt16))
-        self.__wave.setframerate(self.sampling_rate)
-
-    def __wave_write(self, frame):
-        remaining_length = int(self.wave_export_len - self.__wave._nframeswritten)
-
-        if len(frame) > remaining_length:
-            logger.info("wave reached maximum, starting new file...")
-            self.__wave_finalize()
-            self.__wave_initialize()
-
-        logger.debug(f"writing frame, len: {len(frame)}")
-        self.__wave.writeframes(frame)
-
-    def __wave_finalize(self):
-        if not self.__wave:
-            logger.warning("no wave is opened, skipping finalization request")
-            return
-
-        self.__wave.close()
-        self.__wave = None
 
     def __analyse_frame(self, frame: str):
         """checks for the given frame if a trigger is present
@@ -299,7 +285,7 @@ class AudioAnalysisUnit(AbstractAnalysisUnit):
             # is the first ping every time
             # in the moment we done have a relay anymore we can delete the
             # lower boundary
-            if 2 <= self.__pings and not self._trigger:
+            if 1 <= self.__pings and not self._trigger:
                 self._set_trigger(True, f"audio, {self.__pings} pings")
 
             # stop audio if thresbold of quiet blocks is met
@@ -348,6 +334,59 @@ class AudioAnalysisUnit(AbstractAnalysisUnit):
         peak_frequency_hz = bin_peak_index * self.sampling_rate / self.input_frames_per_block
         logger.debug(f"Peak freq hz: {peak_frequency_hz} dBFS: {peak_db}")
         return peak_db
+
+
+class WaveWriter(threading.Thread):
+    def __init__(self, aau: AudioAnalysisUnit):
+        super().__init__()
+        self.aau: AudioAnalysisUnit = aau
+
+        start_time_str = datetime.datetime.now().strftime("%Y-%m-%dT%H_%M_%S")
+        file_path = os.path.join(aau.data_path, start_time_str + ".wav")
+
+        logger.info(f"creating wav file '{file_path}'")
+        self.__wave = wave.open(file_path, "wb")
+        self.__wave.setnchannels(1)
+        self.__wave.setsampwidth(aau.pa.get_sample_size(pyaudio.paInt16))
+        self.__wave.setframerate(aau.sampling_rate)
+
+        self._running = False
+        self.q: Queue = Queue()
+
+    def stop(self):
+        self._running = False
+        self.join()
+
+    def run(self):
+        self._running = True
+
+        while self._running:
+            try:
+                frame = self.q.get(block=True, timeout=1)
+                self.__wave_write(frame)
+            except Empty:
+                break
+
+        self.__wave_finalize()
+
+    def __wave_write(self, frame):
+        remaining_length = int(self.aau.wave_export_len - self.__wave._nframeswritten)
+
+        if len(frame) > remaining_length:
+            logger.info("wave reached maximum, starting new file...")
+            self.__wave_finalize()
+            self.__wave_initialize()
+
+        logger.debug(f"writing frame, len: {len(frame)}")
+        self.__wave.writeframes(frame)
+
+    def __wave_finalize(self):
+        if not self.__wave:
+            logger.warning("no wave is opened, skipping finalization request")
+            return
+
+        self.__wave.close()
+        self.__wave = None
 
 
 class VHFAnalysisUnit(AbstractAnalysisUnit):
@@ -512,9 +551,3 @@ class VHFAnalysisUnit(AbstractAnalysisUnit):
                     self._set_trigger(False, "vhf, timeout")
 
         self.mqttc.disconnect()
-
-
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
-    vhf = VHFAnalysisUnit(8000, [150.611], -80, 0.01, 60, 2, 10, 10, "localhost", 1883, 60, use_trigger=True, trigger_callback=lambda trg, msg: logger.debug(f"Trigger: {trg}, {msg}"))
-    vhf.run()
