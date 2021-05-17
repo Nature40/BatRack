@@ -209,6 +209,8 @@ class AudioAnalysisUnit(AbstractAnalysisUnit):
         stream.close()
         self.pa.terminate()
 
+        logger.info(f"{self.__class__.__name__} termination finished")
+
     def start_recording(self):
         self.__wave_initialize()
         self._recording = True
