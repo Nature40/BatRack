@@ -434,7 +434,7 @@ class VHFAnalysisUnit(AbstractAnalysisUnit):
         station, _, _, _ = message.topic.split("/")
 
         msig = MatchedSignal(["0"], *matched_list)
-        logging.info(f"Received {msig}")
+        logging.debug(f"Received {msig}")
 
         # helper method to retrieve the signal list
         def get_freqs_list(freq: int) -> Tuple[Optional[float], List[Tuple[datetime.datetime, float]]]:
