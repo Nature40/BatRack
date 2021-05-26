@@ -1,7 +1,9 @@
+import asyncio
 import datetime
 import json
 import logging
 import os
+import subprocess
 import threading
 import time
 import wave
@@ -15,6 +17,9 @@ import cbor2 as cbor
 import paho.mqtt.client as mqtt
 import numpy as np
 import pyaudio
+import schedule
+import subprocess
+
 
 from radiotracking import MatchedSignal
 from radiotracking.consume import uncborify
@@ -141,6 +146,7 @@ class AudioAnalysisUnit(AbstractAnalysisUnit):
         quiet_threshold_s: float,
         noise_threshold_s: float,
         sampling_rate: int = 250000,
+        lowpass_hz: int = 42000,
         input_block_duration: float = 0.05,
         **kwargs,
     ):
@@ -149,6 +155,7 @@ class AudioAnalysisUnit(AbstractAnalysisUnit):
         Args:
             threshold_dbfs (int): Loudness threshold for a noisy block.
             highpass_hz (int): Frequency for highpass filter.
+            lowpass_hz (int): Frequency for lowpass filter.
             wave_export_len_s (float): Maximum duration of an exported wave.
             quiet_threshold_s (float): Silence duration for trigger unset.
             noise_threshold_s (float): Noise duration, to set trigger.
@@ -160,6 +167,7 @@ class AudioAnalysisUnit(AbstractAnalysisUnit):
         # user-configuration values
         self.threshold_dbfs: int = int(threshold_dbfs)
         self.highpass_hz: int = int(highpass_hz)
+        self.lowpass_hz: int = int(lowpass_hz)
 
         self.sampling_rate: int = int(sampling_rate)
         self.input_block_duration: float = float(input_block_duration)
@@ -169,6 +177,11 @@ class AudioAnalysisUnit(AbstractAnalysisUnit):
 
         self.quiet_blocks_max: float = float(quiet_threshold_s) / input_block_duration
         self.noise_blocks_max: float = float(noise_threshold_s) / input_block_duration
+
+        self.freq_bins_hz = np.arange((self.input_frames_per_block / 2) + 1) / (
+                    self.input_frames_per_block / float(self.sampling_rate))
+
+        self.frame_count = 0
 
         # set pyaudio config
         self.pa: pyaudio.PyAudio = pyaudio.PyAudio()
@@ -186,6 +199,7 @@ class AudioAnalysisUnit(AbstractAnalysisUnit):
         device_index = self.__find_input_device()
 
         def callback(in_data, frame_count, time_info, status):
+            self.frame_count += 1
             self.__analyse_frame(in_data)
 
             # if a wave file is opened, write the frame to this file
@@ -207,7 +221,14 @@ class AudioAnalysisUnit(AbstractAnalysisUnit):
         stream.start_stream()
 
         while stream.is_active() and self._running:
-            time.sleep(0.1)
+            time.sleep(2)
+            logger.info(f"houston we had {self.frame_count} frames")
+            if self.frame_count == 0:
+                logger.warning("houston we have a problem! No frames are arriving...")
+                logger.warning("Shutting down to come up well again...")
+                subprocess.Popen(["sudo uhubctl -a cycle -p 3 -l 1-1"], shell=True)
+                break
+            self.frame_count = 0
 
         # left while-loop, clean up
         if self.__wavewriter:
@@ -265,7 +286,7 @@ class AudioAnalysisUnit(AbstractAnalysisUnit):
         """
 
         spectrum = self.__exec_fft(frame)
-        peak_db = self.__get_peak_db(spectrum)
+        peak_db, peak_frequency_hz = self.__get_peak_db(spectrum)
 
         # noisy block
         if peak_db > self.threshold_dbfs:
@@ -286,7 +307,7 @@ class AudioAnalysisUnit(AbstractAnalysisUnit):
             # in the moment we done have a relay anymore we can delete the
             # lower boundary
             if 1 <= self.__pings and not self._trigger:
-                self._set_trigger(True, f"audio, {self.__pings} pings")
+                self._set_trigger(True, f"audio, {self.__pings} pings. Newest ping by frequency: {peak_frequency_hz}")
 
             # stop audio if thresbold of quiet blocks is met
             if self.__quiet_blocks > self.quiet_blocks_max and self._trigger:
@@ -309,15 +330,13 @@ class AudioAnalysisUnit(AbstractAnalysisUnit):
         data_int16 = np.frombuffer(signal, dtype=np.int16)
         spectrum = np.fft.rfft(data_int16)
 
-        # compute target frequencies
-        freq_bins_hz = np.arange((self.input_frames_per_block / 2) + 1) / (self.input_frames_per_block / float(self.sampling_rate))
-
         # apply the highpass
-        spectrum[freq_bins_hz < self.highpass_hz] = 0.000000001
+        spectrum[self.freq_bins_hz < self.highpass_hz] = 0.000000001
+        spectrum[self.freq_bins_hz > self.lowpass_hz] = 0.000000001
 
         return spectrum
 
-    def __get_peak_db(self, spectrum: np.fft) -> float:
+    def __get_peak_db(self, spectrum: np.fft) -> Tuple[float, int]:
         """extract the maximal volume of a given spectrum
 
         Args:
@@ -333,7 +352,7 @@ class AudioAnalysisUnit(AbstractAnalysisUnit):
         peak_db = dbfs_spectrum[bin_peak_index]
         peak_frequency_hz = bin_peak_index * self.sampling_rate / self.input_frames_per_block
         logger.debug(f"Peak freq hz: {peak_frequency_hz} dBFS: {peak_db}")
-        return peak_db
+        return peak_db, peak_frequency_hz
 
 
 class WaveWriter(threading.Thread):
@@ -551,3 +570,4 @@ class VHFAnalysisUnit(AbstractAnalysisUnit):
                     self._set_trigger(False, "vhf, timeout")
 
         self.mqttc.disconnect()
+

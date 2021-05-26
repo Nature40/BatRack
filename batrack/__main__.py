@@ -3,6 +3,7 @@ import configparser
 import copy
 import csv
 import datetime
+import inspect
 import logging
 import os
 import signal
@@ -10,14 +11,20 @@ import socket
 import sys
 import threading
 import time
+import platform
 from distutils.util import strtobool
 from typing import List, Union
+import paho.mqtt.client as mqtt
 
 import schedule
 
 from batrack.sensors import AudioAnalysisUnit, CameraAnalysisUnit, VHFAnalysisUnit, AbstractAnalysisUnit
 
 logger = logging.getLogger(__name__)
+
+
+def on_publish(userdata, result):
+    logger.info(f"data published: {userdata} with code {result}")
 
 
 class BatRack(threading.Thread):
@@ -30,10 +37,14 @@ class BatRack(threading.Thread):
         use_vhf: Union[bool, str] = True,
         use_audio: Union[bool, str] = True,
         use_camera: Union[bool, str] = True,
+        use_timed_camera: Union[bool, str] = True,
         use_trigger_vhf: Union[bool, str] = True,
         use_trigger_audio: Union[bool, str] = True,
         use_trigger_camera: Union[bool, str] = True,
         always_on: Union[bool, str] = False,
+        mqtt_host: str = "localhost",
+        mqtt_port: int = 1883,
+        mqtt_keepalive: int = 60,
         **kwargs,
     ):
         super().__init__()
@@ -55,12 +66,21 @@ class BatRack(threading.Thread):
         use_vhf = strtobool(use_vhf) if isinstance(use_vhf, str) else bool(use_vhf)
         use_audio = strtobool(use_audio) if isinstance(use_audio, str) else bool(use_audio)
         use_camera = strtobool(use_camera) if isinstance(use_camera, str) else bool(use_camera)
+        use_timed_camera = strtobool(use_timed_camera) if isinstance(use_timed_camera, str) else bool(use_timed_camera)
 
         use_trigger_vhf = strtobool(use_trigger_vhf) if isinstance(use_trigger_vhf, str) else bool(use_trigger_vhf)
         use_trigger_audio = strtobool(use_trigger_audio) if isinstance(use_trigger_audio, str) else bool(use_trigger_audio)
         use_trigger_camera = strtobool(use_trigger_camera) if isinstance(use_trigger_camera, str) else bool(use_trigger_camera)
 
         self.always_on: bool = strtobool(always_on) if isinstance(always_on, str) else bool(always_on)
+
+        self.mqtt_host = str(mqtt_host)
+        self.mqtt_port = int(mqtt_port)
+        self.mqtt_keepalive = int(mqtt_keepalive)
+        self.mqttc = mqtt.Client(client_id=f"{platform.node()}", clean_session=False, userdata=self)
+        self.mqttc.on_publish = on_publish
+        self.mqttc.connect(self.mqtt_host, port=self.mqtt_port)
+        self.topic_prefix = f"{platform.node()}/BatRack/Trigger"
 
         # setup vhf
         self.vhf: VHFAnalysisUnit = None
@@ -103,6 +123,13 @@ class BatRack(threading.Thread):
         self.csv.writerow([now_time_str, callback_trigger, message])
         self.csvfile.flush()
 
+        stack = inspect.stack()
+        the_class = stack[1][0].f_locals["self"].__class__.__name__
+
+        self.mqttc.publish(f"{self.topic_prefix}/{the_class}", message)
+
+        logger.info(f"sending trigger via mqtt to {self.topic_prefix}/{the_class}")
+
         if self.always_on:
             trigger = True
         else:
@@ -133,7 +160,7 @@ class BatRack(threading.Thread):
         self._running = True
 
         # start units
-        [unit.start() for unit in self._units]
+        [unit.start() for unit in self._units if unit ]
 
         # do an initial trigger evaluation, also starts recordings when no trigger is used at all
         self.evaluate_triggers(False, "initial trigger")
@@ -148,6 +175,8 @@ class BatRack(threading.Thread):
                     os.kill(os.getpid(), signal.SIGINT)
 
             time.sleep(self.duty_cycle_s)
+
+        self.mqttc.disconnect()
 
         logger.info(f"BatRack [{self.name}] finished")
 
