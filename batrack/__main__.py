@@ -23,8 +23,6 @@ from batrack.sensors import AudioAnalysisUnit, CameraAnalysisUnit, VHFAnalysisUn
 logger = logging.getLogger(__name__)
 
 
-def on_publish(userdata, result):
-    logger.info(f"data published: {userdata} with code {result}")
 
 
 class BatRack(threading.Thread):
@@ -77,10 +75,11 @@ class BatRack(threading.Thread):
         self.mqtt_host = str(mqtt_host)
         self.mqtt_port = int(mqtt_port)
         self.mqtt_keepalive = int(mqtt_keepalive)
-        self.mqttc = mqtt.Client(client_id=f"{platform.node()}", clean_session=False, userdata=self)
-        self.mqttc.on_publish = on_publish
-        self.mqttc.connect(self.mqtt_host, port=self.mqtt_port)
-        self.topic_prefix = f"{platform.node()}/BatRack/Trigger"
+        self.mqtt_client = mqtt.Client(client_id=f"{platform.node()}-Trigger", clean_session=False, userdata=self)
+        self.mqtt_client.on_publish = self.on_publish
+        self.mqtt_client.connect(self.mqtt_host, port=self.mqtt_port)
+        self.mqtt_client.loop_start()
+        self.topic_prefix = f"{platform.node()}/mqttutil/trigger"
 
         # setup vhf
         self.vhf: VHFAnalysisUnit = None
@@ -118,17 +117,18 @@ class BatRack(threading.Thread):
         self._running: bool = False
         self._trigger: bool = False
 
+    @staticmethod
+    def on_publish(userdata, result):
+        logger.info(f"data published: {userdata} with code {result}")
+
     def evaluate_triggers(self, callback_trigger: bool, message: str) -> bool:
         now_time_str = datetime.datetime.now().strftime("%Y-%m-%dT%H_%M_%S")
         self.csv.writerow([now_time_str, callback_trigger, message])
         self.csvfile.flush()
 
-        stack = inspect.stack()
-        the_class = stack[1][0].f_locals["self"].__class__.__name__
-
-        self.mqttc.publish(f"{self.topic_prefix}/{the_class}", message)
-
-        logger.info(f"sending trigger via mqtt to {self.topic_prefix}/{the_class}")
+        calling_class = inspect.stack()[1][0].f_locals["self"].__class__.__name__
+        self.mqtt_client.publish(f"{self.topic_prefix}/{calling_class}", message)
+        logger.info(f"sending trigger via mqtt to {self.topic_prefix}/{calling_class}")
 
         if self.always_on:
             trigger = True
