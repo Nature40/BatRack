@@ -23,8 +23,6 @@ from batrack.sensors import AudioAnalysisUnit, CameraAnalysisUnit, VHFAnalysisUn
 logger = logging.getLogger(__name__)
 
 
-
-
 class BatRack(threading.Thread):
     def __init__(
         self,
@@ -176,7 +174,7 @@ class BatRack(threading.Thread):
 
             time.sleep(self.duty_cycle_s)
 
-        self.mqttc.disconnect()
+        self.mqtt_client.disconnect()
 
         logger.info(f"BatRack [{self.name}] finished")
 
