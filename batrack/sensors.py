@@ -6,6 +6,7 @@ import os
 import subprocess
 import threading
 import time
+import threading
 import wave
 import platform
 from distutils.util import strtobool
@@ -19,7 +20,6 @@ import numpy as np
 import pyaudio
 import schedule
 import subprocess
-
 
 from radiotracking import MatchedSignal
 from radiotracking.consume import uncborify
@@ -103,6 +103,7 @@ class CameraAnalysisUnit(AbstractAnalysisUnit):
             light_pin (int): GPIO pin to be used to controll the light.
         """
         super().__init__(**kwargs)
+        self.number_of_lines_to_observe = 5
 
         # initialize GPIO communication
         self.light: gpiozero.LED = gpiozero.LED(light_pin, active_high=False)
@@ -124,6 +125,9 @@ class CameraAnalysisUnit(AbstractAnalysisUnit):
         with open("/var/www/html/FIFO1", "w") as f:
             f.write("1")
 
+        timer = threading.Timer(1.0, self.observe_camera_started)
+        timer.start()
+
         self._recording = True
 
     def stop_recording(self):
@@ -134,7 +138,32 @@ class CameraAnalysisUnit(AbstractAnalysisUnit):
         logger.info("Powering light off")
         self.light.off()
 
+        timer = threading.Timer(1.0, self.observe_camera_stopped)
+        timer.start()
+
         self._recording = False
+
+    def observe_camera_stopped(self):
+        self.observe_camera("Capturing stopped")
+
+    def observe_camera_started(self):
+        self.observe_camera("Capturing started")
+
+    def observe_camera(self, pattern):
+        every_thing_is_fine = False
+        with open("/var/www/html/scheduleLog.txt", "r") as f:
+            last_three_lines = f.readlines()[-self.number_of_lines_to_observe:]
+            for line in last_three_lines:
+                logger.debug(f"checked line: {line} for pattern: {pattern}")
+                if pattern in line:
+                    logger.info("Found pattern in log")
+                    every_thing_is_fine = True
+        if not every_thing_is_fine:
+            self.fix_not_working_camera()
+
+    def fix_not_working_camera(self):
+        logger.warning("try to fix camera behaviour")
+        os.system('sudo reboot')
 
 
 class AudioAnalysisUnit(AbstractAnalysisUnit):
@@ -394,7 +423,7 @@ class WaveWriter(threading.Thread):
         if len(frame) > remaining_length:
             logger.info("wave reached maximum, starting new file...")
             self.__wave_finalize()
-            self.__wave_initialize()
+            self.start()
 
         logger.debug(f"writing frame, len: {len(frame)}")
         self.__wave.writeframes(frame)
