@@ -12,6 +12,7 @@ import sys
 import threading
 import time
 import platform
+import glob
 from distutils.util import strtobool
 from typing import List, Union
 import paho.mqtt.client as mqtt
@@ -124,10 +125,6 @@ class BatRack(threading.Thread):
         self.csv.writerow([now_time_str, callback_trigger, message])
         self.csvfile.flush()
 
-        calling_class = inspect.stack()[1][0].f_locals["self"].__class__.__name__
-        self.mqtt_client.publish(f"{self.topic_prefix}/{calling_class}", message)
-        logger.info(f"sending trigger via mqtt to {self.topic_prefix}/{calling_class}")
-
         if self.always_on:
             trigger = True
         else:
@@ -146,11 +143,16 @@ class BatRack(threading.Thread):
         if trigger != self._trigger:
             self._trigger = trigger
             if trigger:
-                logger.info("System triggered, starting recordings")
                 [unit.start_recording() for unit in self._units]
+                logger.info("System triggered, starting recordings")
+                calling_class = inspect.stack()[1][0].f_locals["self"].__class__.__name__
+                self.mqtt_client.publish(f"{self.topic_prefix}/{calling_class}", message)
             else:
-                logger.info("System un-triggered, stopping recordings")
                 [unit.stop_recording() for unit in self._units]
+                logger.info("System un-triggered, stopping recordings")
+                list_of_files = glob.glob('/var/www/html/media/*.h264')
+                latest_file = max(list_of_files, key=os.path.getctime)
+                self.mqtt_client.publish(f"{self.topic_prefix}/latest_video_file", latest_file)
 
         return trigger
 
