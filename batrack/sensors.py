@@ -137,8 +137,8 @@ class CameraAnalysisUnit(AbstractAnalysisUnit):
         logger.info("Powering light off")
         self.light.off()
 
-        timer = threading.Timer(1.0, self.observe_camera_stopped)
-        timer.start()
+        #timer = threading.Timer(1.0, self.observe_camera_stopped)
+        #timer.start()
 
         self._recording = False
 
