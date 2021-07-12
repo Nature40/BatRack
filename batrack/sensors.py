@@ -3,7 +3,6 @@ import datetime
 import json
 import logging
 import os
-import subprocess
 import threading
 import time
 import threading
@@ -599,4 +598,98 @@ class VHFAnalysisUnit(AbstractAnalysisUnit):
                     self._set_trigger(False, "vhf, timeout")
 
         self.mqttc.disconnect()
+
+
+class TimedInsectTrapAnalysesUnit(AbstractAnalysisUnit):
+    def __init__(self,
+                 light_pin: int,
+                 uv_light_pin: int,
+                 hourly: Union[bool, str],
+                 uv_light_start_time: int,
+                 uv_light_end_time: int,
+                 adjust_time_in_seconds: int,
+                 take_photo_every_seconds: int,
+                 **kwargs):
+        """Camera and light sensor, currently only supporting recording.
+
+        Args:
+            light_pin (int): GPIO pin to be used to control the light.
+        """
+        super().__init__(**kwargs)
+
+        # initialize GPIO communication
+        self.light: gpiozero.LED = gpiozero.LED(light_pin)
+        self.uv_light: gpiozero.PWMLED = gpiozero.LED(uv_light_pin)
+        self.hourly: bool = strtobool(hourly) if isinstance(hourly, str) else bool(hourly)
+        self.uv_light_start_time: int = int(uv_light_start_time)
+        self.uv_light_end_time: int = int(uv_light_end_time)
+        self.adjust_time_in_seconds: int = int(adjust_time_in_seconds)
+        self.take_photo_every_seconds = int(take_photo_every_seconds)
+        self.take_photo_job = None
+        self.photo_routine_started = False
+        self.photo_lock = asyncio.Lock()
+
+    def run(self):
+        self._running = True
+        self._start_daily_routine()
+        # camera software is running in a system process and does
+        # not require any active computations here
+        while self._running:
+            logger.debug("sensor running")
+            schedule.run_pending()
+            time.sleep(0.5)
+
+    def stop_recording(self):
+        logger.info("shut down everything")
+        self._stop_uv_light()
+        self._stop_photo_routine()
+
+    def _start_uv_light(self):
+        logger.info("Start uv light")
+        self.uv_light.on()
+
+    def _stop_uv_light(self):
+        logger.info("Stop uv light")
+        self.uv_light.off()
+
+    def _take_photo(self):
+        if self.photo_routine_started:
+            logger.info("Start photo light on")
+            self.light.on()
+            # wait a short period and double toggle the uv light to ensure that the uv light is runnig
+            time.sleep(0.1)
+            self.uv_light.toggle()
+            time.sleep(0.5)
+            self.uv_light.toggle()
+            time.sleep(self.adjust_time_in_seconds)
+            logger.info("Starting camera recording")
+            with open("/var/www/html/FIFO1", "w") as f:
+                f.write("1")
+            logger.info("Stop photo light off")
+            self.light.off()
+
+    def _start_photo_routine(self):
+        # ToDo use a lock instead to be thread safe
+        if not self.photo_routine_started:
+            self.photo_routine_started = True
+            logger.info("Starting photo routine")
+            schedule.every(self.take_photo_every_seconds).seconds.do(self._take_photo).tag('photo-task', 'photo')
+
+    def _stop_photo_routine(self):
+        if self.photo_routine_started:
+            logger.info("Stop photo routine")
+            schedule.clear('photo-task')
+            self.photo_routine_started = False
+
+    def _start_daily_routine(self):
+        if self.hourly:
+            schedule.every().hour.at(f":{self.uv_light_start_time:02d}").do(self._start_uv_light)
+            schedule.every().hour.at(f":{self.uv_light_start_time:02d}").do(self._start_photo_routine)
+            schedule.every().hour.at(f":{self.uv_light_end_time:02d}").do(self._stop_uv_light)
+            schedule.every().hour.at(f":{self.uv_light_end_time:02d}").do(self._stop_photo_routine)
+        else:
+            schedule.every().minute.at(f":{self.uv_light_start_time:02d}").do(self._start_uv_light)
+            schedule.every().minute.at(f":{self.uv_light_start_time:02d}").do(self._start_photo_routine)
+            schedule.every().minute.at(f":{self.uv_light_end_time:02d}").do(self._stop_uv_light)
+            schedule.every().minute.at(f":{self.uv_light_end_time:02d}").do(self._stop_photo_routine)
 

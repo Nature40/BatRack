@@ -19,7 +19,7 @@ import paho.mqtt.client as mqtt
 
 import schedule
 
-from batrack.sensors import AudioAnalysisUnit, CameraAnalysisUnit, VHFAnalysisUnit, AbstractAnalysisUnit
+from batrack.sensors import AudioAnalysisUnit, CameraAnalysisUnit, VHFAnalysisUnit, AbstractAnalysisUnit, TimedInsectTrapAnalysesUnit
 
 logger = logging.getLogger(__name__)
 
@@ -112,6 +112,17 @@ class BatRack(threading.Thread):
                 data_path=self.data_path,
             )
             self._units.append(self.camera)
+
+        # setup insect camera
+        self.timedCamera: TimedInsectTrapAnalysesUnit = None
+        if use_timed_camera:
+            self.timedCamera = TimedInsectTrapAnalysesUnit(
+                **config["TimedInsectTrapAnalysesUnit"],
+                use_trigger=False,
+                trigger_callback=self.evaluate_triggers,
+                data_path=self.data_path,
+            )
+            self._units.append(self.timedCamera)
 
         self._running: bool = False
         self._trigger: bool = False
