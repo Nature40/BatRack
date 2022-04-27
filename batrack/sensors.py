@@ -607,6 +607,9 @@ class TimedInsectTrapAnalysesUnit(AbstractAnalysisUnit):
                  hourly: Union[bool, str],
                  uv_light_start_time: int,
                  uv_light_end_time: int,
+                 uv_light_intensity: float,
+                 flash_light_intensity: float,
+                 uv_light_intensity_while_taking_photo: float,
                  adjust_time_in_seconds: int,
                  take_photo_every_seconds: int,
                  **kwargs):
@@ -618,11 +621,14 @@ class TimedInsectTrapAnalysesUnit(AbstractAnalysisUnit):
         super().__init__(**kwargs)
 
         # initialize GPIO communication
-        self.light: gpiozero.LED = gpiozero.LED(light_pin)
-        self.uv_light: gpiozero.PWMLED = gpiozero.LED(uv_light_pin)
+        self.flash_light: gpiozero.PWMLED = gpiozero.PWMLED(light_pin, frequency=5000)
+        self.uv_light_and_led_board: gpiozero.PWMLED = gpiozero.PWMLED(uv_light_pin, frequency=5000)
         self.hourly: bool = strtobool(hourly) if isinstance(hourly, str) else bool(hourly)
         self.uv_light_start_time: int = int(uv_light_start_time)
         self.uv_light_end_time: int = int(uv_light_end_time)
+        self.uv_light_intensity: float = float(uv_light_intensity)
+        self.flash_light_intensity: float = float(flash_light_intensity)
+        self.uv_light_intensity_while_taking_photo: float = float(uv_light_intensity_while_taking_photo)
         self.adjust_time_in_seconds: int = int(adjust_time_in_seconds)
         self.take_photo_every_seconds = int(take_photo_every_seconds)
         self.take_photo_job = None
@@ -632,8 +638,7 @@ class TimedInsectTrapAnalysesUnit(AbstractAnalysisUnit):
     def run(self):
         self._running = True
         self._start_daily_routine()
-        # camera software is running in a system process and does
-        # not require any active computations here
+        # camera software is running in a system process and does not require any active computations here
         while self._running:
             logger.debug("sensor running")
             schedule.run_pending()
@@ -646,27 +651,27 @@ class TimedInsectTrapAnalysesUnit(AbstractAnalysisUnit):
 
     def _start_uv_light(self):
         logger.info("Start uv light")
-        self.uv_light.on()
+        self.uv_light_and_led_board.value = self.uv_light_intensity
 
     def _stop_uv_light(self):
         logger.info("Stop uv light")
-        self.uv_light.off()
+        self.uv_light_and_led_board.value = 0.0
 
     def _take_photo(self):
         if self.photo_routine_started:
             logger.info("Start photo light on")
-            self.light.on()
-            # wait a short period and double toggle the uv light to ensure that the uv light is runnig
-            time.sleep(0.1)
-            self.uv_light.toggle()
-            time.sleep(0.5)
-            self.uv_light.toggle()
+            self.flash_light.value = self.flash_light_intensity
+            # wait a short period and double toggle the uv light to ensure that the uv light is running
+            #time.sleep(0.5)
+            self.uv_light_and_led_board.value = self.uv_light_intensity_while_taking_photo
             time.sleep(self.adjust_time_in_seconds)
             logger.info("Starting camera recording")
             with open("/var/www/html/FIFO1", "w") as f:
                 f.write("1")
+            time.sleep(self.adjust_time_in_seconds)
             logger.info("Stop photo light off")
-            self.light.off()
+            self.flash_light.value = 0.0
+            self.uv_light_and_led_board.value = self.uv_light_intensity
 
     def _start_photo_routine(self):
         # ToDo use a lock instead to be thread safe
@@ -692,4 +697,3 @@ class TimedInsectTrapAnalysesUnit(AbstractAnalysisUnit):
             schedule.every().minute.at(f":{self.uv_light_start_time:02d}").do(self._start_photo_routine)
             schedule.every().minute.at(f":{self.uv_light_end_time:02d}").do(self._stop_uv_light)
             schedule.every().minute.at(f":{self.uv_light_end_time:02d}").do(self._stop_photo_routine)
-

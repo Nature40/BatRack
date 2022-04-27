@@ -13,6 +13,7 @@ import threading
 import time
 import platform
 import glob
+import json
 from distutils.util import strtobool
 from typing import List, Union
 import paho.mqtt.client as mqtt
@@ -258,16 +259,47 @@ if __name__ == "__main__":
         run_config.update(config[k])
 
         try:
-            start_s = schedule.every().day.at(run_config["start"])
-            stop_s = schedule.every().day.at(run_config["stop"])
+            days = None
+            if isinstance(run_config["days"], list):
+                days = [d for d in run_config["days"]]
+            elif isinstance(run_config["days"], str):
+                days = [d for d in json.loads(run_config["days"])]
+
+            if days:
+                for config_day in days:
+                    if config_day == "Monday":
+                        start_s = schedule.every().monday.at(run_config["start"])
+                        stop_s = schedule.every().monday.at(run_config["stop"])
+                    elif config_day == "Tuesday":
+                        start_s = schedule.every().tuesday.at(run_config["start"])
+                        stop_s = schedule.every().tuesday.at(run_config["stop"])
+                    elif config_day == "Wednesday":
+                        start_s = schedule.every().wednesday.at(run_config["start"])
+                        stop_s = schedule.every().wednesday.at(run_config["stop"])
+                    elif config_day == "Thursday":
+                        start_s = schedule.every().thursday.at(run_config["start"])
+                        stop_s = schedule.every().thursday.at(run_config["stop"])
+                    elif config_day == "Friday":
+                        start_s = schedule.every().friday.at(run_config["start"])
+                        stop_s = schedule.every().friday.at(run_config["stop"])
+                    elif config_day == "Saturday":
+                        start_s = schedule.every().saturday.at(run_config["start"])
+                        stop_s = schedule.every().saturday.at(run_config["stop"])
+                    elif config_day == "Sunday":
+                        start_s = schedule.every().sunday.at(run_config["start"])
+                        stop_s = schedule.every().sunday.at(run_config["stop"])
+            else:
+                logger.info("start every day")
+                start_s = schedule.every().day.at(run_config["start"])
+                stop_s = schedule.every().day.at(run_config["stop"])
 
             logger.info(f"[{k}] running from {run_config['start']} to {run_config['stop']}")
 
             start_s.do(create_and_run, config, k, run_config)
             stop_s.do(stop_and_remove, k)
 
-            if now.time() > start_s.at_time:
-                if now.time() < stop_s.at_time:
+            if stop_s.at_time > now.time() > start_s.at_time:
+                if datetime.datetime.now().strftime("%A") in days:
                     logger.info(f"[{k}] starting run now (in interval)")
                     create_and_run(config, k, run_config)
 
@@ -275,7 +307,6 @@ if __name__ == "__main__":
 
         except KeyError as e:
             logger.error(f"[{k}] is missing a {e} time, please check the configuration file ({args.configfile}).")
-            sys.exit(1)
         except schedule.ScheduleValueError as e:
             logger.error(f"[{k}] {e}, please check the configuration file ({args.configfile}).")
             sys.exit(1)
